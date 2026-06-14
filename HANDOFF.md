@@ -1,7 +1,17 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-06-12
+> **最後更新**:2026-06-14
+
+## 🔴 新對話第一件事:確認目前運行狀態
+
+- **題庫轉換**:✅ 已全部完成(1039/1039),數學/自然圖片版題目已匯入。數學可用 8,597 題、自然 8,873 題。
+- **正式版伺服器**:目前用 `npx next start -H 0.0.0.0 -p 3000`(正式版,非開發模式)在跑,給家人從 `http://192.168.8.171:3000` 測試。
+  - 改完程式要 `cd web; npm run build` 再重啟 next start 家人才看得到。
+  - **新增 public/qimg 圖片後,next start 必須重啟**才會服務到新圖。
+  - 使用者要自己改程式即時預覽時,改用 `npm run dev`(但 dev 模式手機/別人裝置常掛,只適合自己開發機)。
+- **git**:本地 `feature/gamification` 分支,已 commit(尚未連 GitHub)。
+- 背景監看器在對話結束後會停止;若有未跑完的事(如轉換)需手動接手。
 
 ---
 
@@ -100,22 +110,31 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 8. 進行中 / 待辦
 
-- 🔄 **LibreOffice 全量轉換**(數學+自然 1039 檔,約 10 小時,會考真題優先)。完成旗標:`data\lo-done.flag`。完成後跑 `rebuild-math-science.mjs`。
-- ⏳ 遊戲化(見 docs/07):XP/等級、每日任務、金幣商城、徽章 → 提升動機
-- ⏳ 英聽音檔、克漏字題組拆分、115 真題 PDF 轉換
-- ⏳ 自然/社會的圖片題(比照數學 LibreOffice 流程)
-- ⏳ 推 GitHub(Private)+ Vercel 部署
+- ✅ LibreOffice 全量轉換(1039/1039 完成)+ 圖片版匯入(數學 8,597 / 自然 8,873 可用)。
+- ✅ 遊戲化 A/B/C 全做完(見 7.5)。
+- ✅ 導覽列分類(首頁/練習/對戰/歷程/我的)、個人頁改暱稱+上傳頭像。
+- ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
+- ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
+- ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
+- ⏳ 英聽音檔、克漏字題組拆分、115 真題 PDF 轉換、社會科圖片題(比照 LibreOffice 流程)。
+- ⏳(商業化才需)AI 出題管線替換康軒題,見 docs/08。
 
 ## 9. 重要教訓(別重蹈覆轍)
 
 1. **Word COM 轉檔在背景必卡** → 改用 LibreOffice headless(`soffice --headless --convert-to html`),背景安全。
 2. 別在背景轉換進行時殺 soffice(會中斷轉換)。
 3. 康軒 .doc 的數學符號是 Word 特殊物件,**任何工具都會掉部分線段名稱/次方**(約 27%),靠 `looksDegraded` 偵測排除,確保「少而正確」。
-4. PowerShell 腳本存 UTF-8 BOM;Supabase 從 Node 走 REST 不走 supabase-js。
+4. PowerShell 腳本存 UTF-8 BOM;Supabase 從 Node 走 REST 不走 supabase-js(Node 無原生 WebSocket)。
+5. **給別人/手機測試一定要用正式版**(`next build` + `next start`),不要用 `npm run dev`(dev 模式 JS 又大又沒轉譯,在別人手機上頁面出得來但「點不動」= hydration 失敗)。
+6. **註冊預設要 Email 驗證**(autoconfirm 關),家人自己註冊會卡;且公開 signup 會擋假 email(如 @test.com)。給親友測試最快是用 Admin API 預先建帳號(email_confirm:true),見 scripts 內建帳號的寫法。
+7. `next start` 啟動時鎖定 public 檔清單,**之後新增的 qimg 圖片要重啟 next start 才會服務**。
+8. 本對話的 Claude Preview 預覽工具不穩(伺服器常閃退);驗證改用「REST 測試腳本 + 正式版 HTTP 200 檢查」。
 
 ---
 
 ## 📋 進度日誌(每次里程碑往上加一行)
+
+- 2026-06-14 下午:題庫轉換全完成並匯入(數學 8,597/自然 8,873 可用,22,319 張圖);導覽列整併成 5 大類+練習/對戰 hub;個人頁可改暱稱+上傳頭像(avatars bucket);改用正式版伺服器供家人測試;補上 DB migration 版控。
 
 - 2026-06-12 上午(續):新增 docs/07 遊戲化設計、本 HANDOFF.md、根目錄 CLAUDE.md(指引新對話先讀 HANDOFF);把方法論打包成可分享 skill → `skills/online-quiz-system/`(及 `online-quiz-system.skill`)。
 - 2026-06-12 上午:LibreOffice 管線打通並驗證圖片顯示;數學會考真題圖片版上線;全量轉換背景進行中。
