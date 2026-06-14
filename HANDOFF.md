@@ -61,8 +61,10 @@ D:\Claude\國中會考\
 
 ## 5. 資料庫(Supabase public schema)
 
-`profiles, questions, attempts, mastery, wrong_book, exam_sessions, daily_stats, contests, contest_entries`
-RPC:`get_topics(subj)`、`get_contest_leaderboard(cid)`
+**完整結構在 `supabase/migrations/*.sql`(可重建,見該資料夾 README)。**
+表:`profiles, questions, attempts, mastery, wrong_book, exam_sessions, daily_stats, contests, contest_entries, daily_quests, user_achievements, user_items, friendships, duels, boss_clears`
+RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_duel, get_duel, my_duels`
+觸發器:`on_attempt_gamify`(作答自動發 XP/金幣/任務/週XP)、`handle_new_user`(自動建 profile+好友碼)
 全表開 RLS;大會考只有 role=teacher/parent 能建。
 
 ## 6. 測試帳號(已建,免信箱驗證)
