@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($dirs = @\\('國文','英文','數學','自然','社會','地理'\\); foreach \\($d in $dirs\\) { $files = Get-ChildItem -Recurse -File \"D:\\\\Claude\\\\國中會考\\\\$d\"; Write-Output \"=== $d : 共 $\\($files.Count\\) 個檔案 ===\"; $files | Group-Object Extension | Sort-Object Count -Descending | ForEach-Object { Write-Output \\(\"  {0} x {1}\" -f $_.Name, $_.Count\\) } })",
+      "PowerShell($word = New-Object -ComObject Word.Application; $word.Visible = $false; $doc = $word.Documents.Open\\(\"D:\\\\Claude\\\\國中會考\\\\數學\\\\01.康軒精選題\\\\第 1 冊\\\\1-1負數與數線.doc\", $false, $true\\); $text = $doc.Content.Text; $doc.Close\\($false\\); $word.Quit\\(\\); [System.Runtime.InteropServices.Marshal]::ReleaseComObject\\($word\\) | Out-Null; $text.Substring\\(0, [Math]::Min\\(2500, $text.Length\\)\\))",
+      "mcp__ce4e8d25-a9f9-4de3-9902-e298560bfd74__get_project",
+      "PowerShell(powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\\\Claude\\\\國中會考\\\\scripts\\\\extract-docs.ps1\")",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell($p = \"D:\\\\Claude\\\\國中會考\\\\scripts\\\\extract-docs.ps1\"; $c = [IO.File]::ReadAllText\\($p, [Text.Encoding]::UTF8\\); [IO.File]::WriteAllText\\($p, $c, \\(New-Object Text.UTF8Encoding\\($true\\)\\)\\); Write-Output \"converted to UTF-8 BOM\")",
+      "mcp__ce4e8d25-a9f9-4de3-9902-e298560bfd74__apply_migration",
+      "PowerShell(Get-ChildItem \"D:\\\\Claude\\\\國中會考\\\\web\\\\node_modules\\\\next\\\\dist\\\\docs\" | Select-Object -ExpandProperty Name; \\(Get-Content \"D:\\\\Claude\\\\國中會考\\\\web\\\\package.json\" | ConvertFrom-Json\\).dependencies)"
+    ]
+  }
+}

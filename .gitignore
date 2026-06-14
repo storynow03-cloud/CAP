@@ -1,0 +1,45 @@
+# ===== 相依套件 / 建置產物(可重建,超大)=====
+**/node_modules/
+web/.next/
+web/out/
+web/build/
+
+# ===== 金鑰 / 環境檔(絕不進 git)=====
+**/.env
+**/.env.local
+**/.env*.local
+
+# ===== 康軒原始 .doc 題庫(版權內容,~2.2GB,絕不進 git)=====
+/國文/
+/數學/
+/自然/
+/社會/
+/英文/
+/地理/
+/大姐的考卷/
+
+# ===== 題庫轉換中間檔(又大又可重建)=====
+data/extracted/
+data/html/
+data/lo-html/
+data/lo-test/
+data/lo-test2/
+data/raw/
+data/questions/*.bak
+data/questions/*.html.json
+
+# 轉換暫存 / 日誌 / 旗標
+data/*.txt
+data/*.flag
+data/convert-heartbeat.txt
+data/convert-skiplist.txt
+
+# ===== 作業系統 / 編輯器 =====
+.DS_Store
+Thumbs.db
+*.log
+
+# 保留說明:
+#  - data/questions/*.json(乾淨題庫)有版控
+#  - web/public/qimg/(題目圖片,網站執行時需要)有版控
+#  - docs/ scripts/ skills/ HANDOFF.md 皆有版控
