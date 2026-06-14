@@ -87,6 +87,15 @@ RPC:`get_topics(subj)`、`get_contest_leaderboard(cid)`
 - ✅ 題庫:五科約 4 萬可用單選題(文字版)
 - ✅ 數學會考真題圖片版(LibreOffice 管線,已驗證圖片正常顯示)
 
+## 7.5 遊戲化(feature/gamification 分支,A/B/C 全做完並測試通過)
+
+- Phase A:XP+個人等級、每日 3 任務、金幣、商城(主題色/頭像框)、12 成就。觸發器 `on_attempt_gamify` 作答自動發獎勵。
+- Phase B:學習夥伴寵物(隨等級進化)。
+- Phase C:好友(好友碼互加)、本週 XP 排行、1v1 PK 對戰(非同步,duels 表)、轉蛋、每週王關(boss_clears)。
+- 頁面:`/me`(成就/夥伴/商城)、`/friends`、`/duel`、`/boss`。RPC:add_friend/get_friends_board/create_duel/get_duel/my_duels。
+- 測試:`scripts/test-gamify.mjs`、`scripts/test-gamify-bc.mjs`(全綠)。
+- ⚠️ UI 視覺設計使用者說之後再修(目前堪用)。
+
 ## 8. 進行中 / 待辦
 
 - 🔄 **LibreOffice 全量轉換**(數學+自然 1039 檔,約 10 小時,會考真題優先)。完成旗標:`data\lo-done.flag`。完成後跑 `rebuild-math-science.mjs`。
