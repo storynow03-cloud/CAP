@@ -5,15 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
-  { href: "/", label: "首頁" },
-  { href: "/challenge", label: "分階挑戰" },
-  { href: "/boss", label: "王關" },
-  { href: "/friends", label: "好友" },
-  { href: "/contest", label: "大會考" },
-  { href: "/practice", label: "自由練習" },
-  { href: "/wrong-book", label: "錯題本" },
-  { href: "/history", label: "學習歷程" },
-  { href: "/me", label: "個人" },
+  { href: "/", label: "🏠 首頁", match: ["/"] },
+  { href: "/learn", label: "📚 練習", match: ["/learn", "/challenge", "/practice", "/wrong-book", "/mock-exam"] },
+  { href: "/arena", label: "⚔️ 對戰", match: ["/arena", "/boss", "/friends", "/duel", "/contest"] },
+  { href: "/history", label: "📈 歷程", match: ["/history"] },
+  { href: "/me", label: "🙂 我的", match: ["/me"] },
 ];
 
 export default function Nav() {
@@ -33,19 +29,23 @@ export default function Nav() {
         <span className="accent-text mr-2 whitespace-nowrap px-2 font-bold">
           會考衝刺站
         </span>
-        {LINKS.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 ${
-              pathname === l.href
-                ? "accent-bg text-white"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            {l.label}
-          </Link>
-        ))}
+        {LINKS.map((l) => {
+          const active =
+            l.href === "/"
+              ? pathname === "/"
+              : l.match.some((m) => m !== "/" && pathname.startsWith(m));
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 ${
+                active ? "accent-bg text-white" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              {l.label}
+            </Link>
+          );
+        })}
         <button
           onClick={signOut}
           className="ml-auto whitespace-nowrap rounded-full px-3 py-1.5 text-slate-400 hover:bg-slate-100"

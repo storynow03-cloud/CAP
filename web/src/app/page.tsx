@@ -85,8 +85,15 @@ export default async function Dashboard() {
         className="flex items-stretch divide-x divide-slate-100 rounded-2xl bg-white px-2 py-3 shadow-sm transition hover:shadow"
       >
         <div className="flex flex-1 items-center gap-2.5 px-2">
-          <div className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full accent-bg text-sm font-black text-white">
-            {lv.level}
+          <div className="relative h-10 w-10 shrink-0">
+            {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.avatar_url} alt="頭像" className="h-10 w-10 rounded-full object-cover" />
+            ) : (
+              <div className="grid h-10 w-10 place-items-center rounded-full accent-bg text-sm font-black text-white">
+                {lv.level}
+              </div>
+            )}
             {frame && <span className="absolute -right-1 -top-1 text-sm">{frame.value}</span>}
           </div>
           <div className="min-w-0">

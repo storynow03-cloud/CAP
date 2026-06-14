@@ -14,6 +14,7 @@ interface Profile {
   equipped_theme: string | null;
   equipped_frame: string | null;
   pet: string;
+  avatar_url: string | null;
 }
 
 export default function MePage() {
@@ -24,6 +25,9 @@ export default function MePage() {
   const [tab, setTab] = useState<"achievements" | "shop" | "pet">("achievements");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -33,7 +37,7 @@ export default function MePage() {
 
     const [{ data: p }, { data: items }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,avatar_url").eq("id", uid).maybeSingle(),
         supabase.from("user_items").select("key").eq("user_id", uid),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
@@ -110,6 +114,36 @@ export default function MePage() {
     load();
   }
 
+  async function saveName() {
+    const name = nameInput.trim();
+    if (!name) { setMsg("暱稱不能空白"); return; }
+    const supabase = createClient();
+    const { data: u } = await supabase.auth.getUser();
+    await supabase.from("profiles").update({ nickname: name }).eq("id", u.user!.id);
+    setEditing(false);
+    setMsg("暱稱已更新 ✅");
+    load();
+  }
+
+  async function uploadAvatar(file: File) {
+    if (!file.type.startsWith("image/")) { setMsg("請選圖片檔"); return; }
+    if (file.size > 5 * 1024 * 1024) { setMsg("圖片請小於 5MB"); return; }
+    setUploading(true);
+    const supabase = createClient();
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u.user!.id;
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${uid}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (error) { setMsg("上傳失敗:" + error.message); setUploading(false); return; }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const url = `${pub.publicUrl}?t=${Date.now()}`; // 加時間戳避免快取
+    await supabase.from("profiles").update({ avatar_url: url }).eq("id", uid);
+    setUploading(false);
+    setMsg("照片已更新 ✅");
+    load();
+  }
+
   async function choosePet(key: string) {
     const supabase = createClient();
     const { data: u } = await supabase.auth.getUser();
@@ -154,19 +188,54 @@ export default function MePage() {
       {/* 個人卡 */}
       <section className="accent-hero rounded-2xl p-6 text-white shadow">
         <div className="flex items-center gap-4">
-          <div className="relative grid h-16 w-16 place-items-center rounded-full bg-white/20 text-2xl font-black">
-            Lv{lv.level}
+          <div className="relative h-16 w-16 shrink-0">
+            {profile.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.avatar_url} alt="頭像"
+                className="h-16 w-16 rounded-full border-2 border-white/40 object-cover" />
+            ) : (
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-white/20 text-2xl font-black">
+                Lv{lv.level}
+              </div>
+            )}
             {frame && <span className="absolute -right-1 -top-1 text-xl">{frame.value}</span>}
           </div>
           <div className="flex-1">
-            <p className="text-xl font-bold">{profile.nickname}</p>
-            <p className="text-sm opacity-90">XP {profile.xp}|🪙 {profile.coins}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xl font-bold">{profile.nickname}</p>
+              <button onClick={() => { setNameInput(profile.nickname); setEditing(!editing); }}
+                className="rounded-full bg-white/20 px-2 py-0.5 text-xs">✏️ 編輯</button>
+            </div>
+            <p className="text-sm opacity-90">Lv{lv.level}|XP {profile.xp}|🪙 {profile.coins}</p>
           </div>
           <div className="text-center">
             <div className="text-4xl">{petEmoji(profile.pet, lv.level)}</div>
             <div className="text-xs opacity-80">{STAGE_NAMES[petStage(lv.level)]}</div>
           </div>
         </div>
+
+        {editing && (
+          <div className="mt-4 space-y-3 rounded-xl bg-white/15 p-3">
+            <div>
+              <label className="text-xs opacity-80">暱稱</label>
+              <div className="mt-1 flex gap-2">
+                <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} maxLength={20}
+                  className="flex-1 rounded-lg px-3 py-2 text-slate-900" placeholder="輸入新暱稱" />
+                <button onClick={saveName} className="rounded-lg bg-white px-4 font-semibold accent-text">儲存</button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs opacity-80">大頭照</label>
+              <label className="mt-1 flex cursor-pointer items-center justify-center rounded-lg bg-white/25 py-2 text-sm font-semibold">
+                {uploading ? "上傳中…" : "📷 選擇照片上傳"}
+                <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                  onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])} />
+              </label>
+              <p className="mt-1 text-xs opacity-70">建議正方形圖片,小於 5MB</p>
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/25">
           <div className="h-full rounded-full bg-white" style={{ width: `${(lv.intoLevel / lv.levelSpan) * 100}%` }} />
         </div>
