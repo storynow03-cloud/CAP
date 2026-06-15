@@ -113,6 +113,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 - ✅ LibreOffice 全量轉換(1039/1039 完成)+ 圖片版匯入(數學 8,597 / 自然 8,873 可用)。
 - ✅ 遊戲化 A/B/C 全做完(見 7.5)。
 - ✅ 導覽列分類(首頁/練習/對戰/歷程/我的)、個人頁改暱稱+上傳頭像。
+- 🔜 **遊戲化經濟系統(三項):見 9.5**。順序 #三 商城DB化 → #二 寵物餵食 → #四 交易所。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -132,8 +133,47 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ---
 
+## 9.5 下一個工作:遊戲化「經濟系統」(三項,依序做,互相依賴)
+
+> 使用者已確認要做這三項。**順序必須是 #三 → #二 → #四**,因為 #二#四 都依賴 DB 版商城。
+> 做之前先讀現有的遊戲化:`web/src/lib/gamify.ts`(目前商城/寵物/成就都寫死在這)、
+> `web/src/app/me/page.tsx`(商城/寵物/成就 UI)、觸發器 `on_attempt_gamify`(發 XP/金幣)。
+
+### #三 商城改「資料庫驅動 + 管理者 UI 增刪商品」(先做,是基礎)
+- 現況:商城商品(主題色/頭像框)寫死在 `gamify.ts` 的 `SHOP_ITEMS`;`user_items` 記擁有。
+- 要做:
+  - 新表 `shop_categories(id, name, sort)` 與 `shop_items(id, category_id, name, type, value, price, active, sort)`。
+    type 至少含:`theme`(主色 hex)、`frame`(emoji)、`food`(寵物食物,給 #二 用)。value 存對應內容。
+  - `/me` 商城改成讀 DB(取代寫死的 SHOP_ITEMS);購買仍扣 coins、寫 user_items。
+  - 管理頁(在 /admin 內新增分頁或 /admin/shop):管理者可**新增/編輯/刪除分類與商品**(CRUD)。
+    走後端 API(比照 `/api/admin/users` 的 requireStaff 模式)或直接前端用 RLS(staff 才能寫 shop_*)。
+  - 把現有寫死的商品 seed 進 DB(一支 migration 或 script)。
+
+### #二 寵物餵食 / 好感度 / 挑戰打氣(依賴 #三 的 food 商品)
+- 現況:`profiles.pet` 存種類,等級決定進化(`petStage`),純看 player level。
+- 要做:
+  - `profiles` 加 `pet_affection int default 0`(好感度);可能加 `pet_fed_at`。
+  - 「食物」是 shop_items 的 type=food 商品;購買後進 user_items(或新 inventory 表記數量)。
+  - 餵食動作:消耗一個食物 → `pet_affection += n`。好感度可影響進化或解鎖造型(自訂規則)。
+  - 寵物在「分階挑戰」作答時出現打氣:在 `web/src/components/Quiz.tsx` 答對/答錯時,
+    依 challenge 模式顯示寵物 emoji + 一句台詞(可依好感度變親密)。
+  - /me 夥伴分頁顯示好感度條 + 餵食按鈕。
+
+### #四 玩家交易所(最複雜,最後做,依賴 #三)
+- 要做:
+  - `market_listings(id, seller, item_key, price, status, created_at)`;玩家把自己 user_items 的商品上架。
+  - 購買:買方扣 coins、賣方加 coins、item 轉移擁有權。**務必用 Postgres 函式(security definer)做原子交易**
+    (檢查買方金幣足夠、listing 仍有效、防止重複購買/自己買自己),不要在前端拆步驟做(會有競態/作弊風險)。
+  - RLS:listing 大家可讀;只有賣方能上架/下架自己的;購買走 RPC。
+  - 頁面 `/market`:瀏覽上架商品、上架自己的、購買。放「對戰」hub 或「我的」內。
+  - 防作弊重點:原子性、伺服器端驗證金幣與擁有權、避免負金幣。
+
+### 開新對話怎麼說
+「讀 HANDOFF.md,做 9.5 的遊戲化經濟系統,從 #三 商城 DB 化開始」。
+
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-14 傍晚:家人帳號 rita/yufei(密碼 88888888);帳號管理 CRUD 模組(/admin + /api/admin/users,管理者才見,入口在「我的」頁);章節掌握度總檢查(/chapters,self_assessment 表 + get_chapter_overview RPC,自評vs系統評)。**下一步見「9.5 下一個工作」。**
 - 2026-06-14 下午:題庫轉換全完成並匯入(數學 8,597/自然 8,873 可用,22,319 張圖);導覽列整併成 5 大類+練習/對戰 hub;個人頁可改暱稱+上傳頭像(avatars bucket);改用正式版伺服器供家人測試;補上 DB migration 版控。
 
 - 2026-06-12 上午(續):新增 docs/07 遊戲化設計、本 HANDOFF.md、根目錄 CLAUDE.md(指引新對話先讀 HANDOFF);把方法論打包成可分享 skill → `skills/online-quiz-system/`(及 `online-quiz-system.skill`)。
