@@ -15,6 +15,7 @@ interface Profile {
   equipped_frame: string | null;
   pet: string;
   avatar_url: string | null;
+  role: string;
 }
 
 export default function MePage() {
@@ -37,7 +38,7 @@ export default function MePage() {
 
     const [{ data: p }, { data: items }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,avatar_url").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("user_items").select("key").eq("user_id", uid),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
@@ -241,6 +242,21 @@ export default function MePage() {
         </div>
         <p className="mt-1 text-xs opacity-80">再 {lv.toNext} XP 升 Lv{lv.level + 1}</p>
       </section>
+
+      {/* 管理者:帳號管理入口 */}
+      {(profile.role === "teacher" || profile.role === "parent") && (
+        <a href="/admin"
+          className="flex items-center justify-between rounded-2xl bg-slate-800 px-5 py-4 text-white shadow-sm transition hover:bg-slate-700">
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">🛠️</span>
+            <span>
+              <span className="block font-bold">帳號管理</span>
+              <span className="block text-xs opacity-70">新增/編輯/刪除帳號(管理者)</span>
+            </span>
+          </span>
+          <span className="text-xl">→</span>
+        </a>
+      )}
 
       {/* 分頁 */}
       <div className="flex gap-2">

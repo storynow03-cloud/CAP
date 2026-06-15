@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -10,23 +9,12 @@ const LINKS = [
   { href: "/learn", label: "📚 練習", match: ["/learn", "/challenge", "/practice", "/wrong-book", "/mock-exam"] },
   { href: "/arena", label: "⚔️ 對戰", match: ["/arena", "/boss", "/friends", "/duel", "/contest"] },
   { href: "/history", label: "📈 歷程", match: ["/history"] },
-  { href: "/me", label: "🙂 我的", match: ["/me"] },
+  { href: "/me", label: "🙂 我的", match: ["/me", "/admin"] },
 ];
 
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isStaff, setIsStaff] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const supabase = createClient();
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return;
-      const { data: p } = await supabase.from("profiles").select("role").eq("id", u.user.id).maybeSingle();
-      setIsStaff(p?.role === "teacher" || p?.role === "parent");
-    })();
-  }, [pathname]);
 
   if (pathname.startsWith("/login")) return null;
 
@@ -59,16 +47,6 @@ export default function Nav() {
             </Link>
           );
         })}
-        {isStaff && (
-          <Link
-            href="/admin"
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 ${
-              pathname.startsWith("/admin") ? "accent-bg text-white" : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            🛠️ 管理
-          </Link>
-        )}
         <button
           onClick={signOut}
           className="ml-auto whitespace-nowrap rounded-full px-3 py-1.5 text-slate-400 hover:bg-slate-100"
