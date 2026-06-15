@@ -106,6 +106,18 @@ export default function HistoryPage() {
     <div className="space-y-6">
       <h1 className="text-xl font-bold">📊 學習歷程</h1>
 
+      <a href="/chapters"
+        className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 p-5 text-white shadow transition hover:brightness-110">
+        <span className="flex items-center gap-3">
+          <span className="text-2xl">📋</span>
+          <span>
+            <span className="block font-bold">章節掌握度總檢查</span>
+            <span className="block text-xs opacity-80">逐章自評 + 系統評,找出盲點</span>
+          </span>
+        </span>
+        <span className="text-xl">→</span>
+      </a>
+
       <section className="rounded-2xl bg-white p-4 shadow">
         <h2 className="mb-2 px-2 font-bold">五科能力雷達</h2>
         <div className="h-64">
