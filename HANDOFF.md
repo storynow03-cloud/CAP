@@ -129,7 +129,8 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 - 🔜 **遊戲化擴充 Phase 3(使用者 6/16 第二批要求,分階段):夥伴 DB 化 + 格位經濟 + 管理者 CRUD + 交易**:
   - ✅ **Phase 3a 夥伴資料庫化完成**(2026-06-16):pet_defs 表(管理者可 CRUD、3 階段、每階段 emoji 或上傳圖)取代寫死的 PETS;進化 4 階改 3 階(幼年/成長期/完全體);新增共用 `PetView` 元件(emoji/圖片統一渲染),/me、好友、Quiz 全改 DB 驅動。seed 9 隻起始夥伴(經典4+寶可夢風5);皮克敏改由管理者上傳正確圖(避免版權)。
   - 🔜 **Phase 3b 夥伴格位經濟**:免費 1 隻、每多開 1 隻 2000 金幣、上限 5(user_pets 表 + unlock_pet RPC)。
-  - 🔜 **Phase 3c 管理者夥伴 CRUD**:/admin 可新增/編輯/刪除夥伴 + 上傳階段圖片。
+  - ✅ **Phase 3c 管理者夥伴 CRUD 完成**(2026-06-16):`/admin/pets` + `/api/admin/pets`(requireStaff);可新增/編輯/刪除夥伴,每階段 emoji 或上傳圖片(pet-images bucket);入口在 /admin。
+  - 🔜 **傳說特效夥伴**(使用者新需求):pet_defs 加特效旗標 + 加成欄位(金幣/XP/好感度),管理者可設定;作答觸發器套用加成;Quiz 作答有特效;「選擇夥伴」自訂下方加「傳說夥伴」區;皇小米改為 2000 元可購買的傳說夥伴。
   - 🔜 **Phase 3d 管理者交易所 CRUD**:可下架/刪除玩家 listing(moderation)。
   - 🔜 **Phase 3e 自創夥伴上架交易所 + 進化圖/特效展示**。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。

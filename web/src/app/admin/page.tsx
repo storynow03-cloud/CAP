@@ -77,7 +77,10 @@ export default function AdminPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">🛠️ 帳號管理</h1>
-        <a href="/admin/shop" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">🛍️ 商城管理 →</a>
+        <div className="flex gap-2">
+          <a href="/admin/pets" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">🐾 夥伴管理 →</a>
+          <a href="/admin/shop" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">🛍️ 商城管理 →</a>
+        </div>
       </div>
       {msg && <p className="rounded-lg bg-amber-50 p-2 text-center text-sm text-amber-700">{msg}</p>}
 
