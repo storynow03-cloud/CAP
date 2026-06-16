@@ -57,7 +57,36 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 ];
 
 // ===== 商城(資料庫驅動,目錄存在 shop_categories / shop_items)=====
-export type ShopItemType = "theme" | "frame" | "food";
+export type ShopItemType = "theme" | "frame" | "nameplate" | "title" | "food" | "booster";
+
+// 稀有度(顯示樣式)
+export type Rarity = "common" | "rare" | "epic" | "legendary";
+export const RARITY: Record<Rarity, { label: string; ring: string; chip: string; glow: string }> = {
+  common:    { label: "普通", ring: "ring-1 ring-slate-200",  chip: "bg-slate-100 text-slate-500",  glow: "" },
+  rare:      { label: "稀有", ring: "ring-2 ring-sky-300",    chip: "bg-sky-100 text-sky-700",      glow: "shadow-[0_0_0_2px_rgba(56,189,248,.25)]" },
+  epic:      { label: "史詩", ring: "ring-2 ring-violet-300", chip: "bg-violet-100 text-violet-700", glow: "shadow-[0_0_14px_rgba(139,92,246,.45)]" },
+  legendary: { label: "傳說", ring: "ring-2 ring-amber-300",  chip: "bg-amber-100 text-amber-700",   glow: "shadow-[0_0_18px_rgba(245,158,11,.6)]" },
+};
+export const rarityOf = (r: string | null | undefined): Rarity =>
+  (["common", "rare", "epic", "legendary"].includes(r ?? "") ? r : "common") as Rarity;
+export const SHOP_TYPE_LABEL: Record<string, string> = {
+  theme: "🎨 主題色", frame: "🖼️ 頭像框", nameplate: "🏷️ 名牌底圖", title: "🏅 稱號",
+  food: "🍖 寵物食物", booster: "⚡ 加成道具",
+};
+
+// get_shop RPC 回傳列(含今日折扣價與精選旗標)
+export interface ShopRow {
+  id: number;
+  key: string;
+  label: string;
+  type: ShopItemType | string;
+  value: string;
+  price: number;
+  rarity: string;
+  sort: number;
+  effective_price: number;
+  is_featured: boolean;
+}
 
 export interface ShopCategory {
   id: number;
@@ -73,9 +102,10 @@ export interface ShopItem {
   label: string;
   price: number;
   type: ShopItemType | string;
-  value: string;          // theme: 主色 hex;frame: emoji;food: 好感度點數
+  value: string;          // theme: 主色 hex;frame: emoji;nameplate: 漸層;title: 文字;food: 好感度點數
   active: boolean;
   sort: number;
+  rarity?: string;
 }
 
 /** 最小化的 supabase client 介面(server / browser 兩種 client 都符合)*/

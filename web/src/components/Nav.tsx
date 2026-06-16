@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/", label: "🏠 首頁", match: ["/"] },
   { href: "/learn", label: "📚 練習", match: ["/learn", "/challenge", "/practice", "/wrong-book", "/mock-exam"] },
   { href: "/arena", label: "⚔️ 對戰", match: ["/arena", "/boss", "/friends", "/duel", "/contest"] },
+  { href: "/shop", label: "🏪 商店", match: ["/shop", "/market"] },
   { href: "/history", label: "📈 歷程", match: ["/history"] },
   { href: "/me", label: "🙂 我的", match: ["/me", "/admin"] },
 ];

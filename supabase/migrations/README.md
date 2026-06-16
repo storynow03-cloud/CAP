@@ -17,6 +17,7 @@
 | 9 | `20260615000000_shop_db.sql` | 商城資料庫化:shop_categories, shop_items(取代寫死的 SHOP_ITEMS)+ seed + staff-only 寫入 RLS |
 | 10 | `20260615010000_pet_feeding.sql` | 寵物餵食:profiles.pet_affection/pet_fed_at、inventory 表(消耗品)、buy_food/feed_pet RPC(原子交易) |
 | 11 | `20260615020000_market.sql` | 玩家交易所:market_listings 表 + create_listing/cancel_listing/buy_listing/get_market RPC(security definer 原子交易、託管制) |
+| 12 | `20260616000000_shop_pro.sql` | 商城專業化:shop_items.rarity、名牌底圖/稱號商品、profiles.equipped_nameplate/title、shop_featured_keys/get_shop/buy_item RPC(每日精選 7 折、server 端統一購買) |
 
 ## 如何重建資料庫
 

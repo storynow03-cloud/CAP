@@ -14,6 +14,8 @@ interface Profile {
   coins: number;
   equipped_theme: string | null;
   equipped_frame: string | null;
+  equipped_nameplate: string | null;
+  equipped_title: string | null;
   pet: string;
   pet_affection: number;
   avatar_url: string | null;
@@ -22,12 +24,11 @@ interface Profile {
 
 export default function MePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [owned, setOwned] = useState<Set<string>>(new Set());
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [inventory, setInventory] = useState<Map<string, number>>(new Map());
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<AchStats | null>(null);
-  const [tab, setTab] = useState<"achievements" | "shop" | "pet">("achievements");
+  const [tab, setTab] = useState<"achievements" | "pet">("achievements");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -40,10 +41,9 @@ export default function MePage() {
     if (!u.user) return;
     const uid = u.user.id;
 
-    const [{ data: p }, { data: items }, { data: inv }, shop, { data: ach }, { data: mastery }, ac, an, conq, exam] =
+    const [{ data: p }, { data: inv }, shop, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,pet_affection,avatar_url,role").eq("id", uid).maybeSingle(),
-        supabase.from("user_items").select("key").eq("user_id", uid),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
@@ -90,7 +90,6 @@ export default function MePage() {
     setProfile(p as Profile);
     setShopItems(shop);
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
-    setOwned(new Set((items ?? []).map((i) => i.key)));
     setUnlocked(already);
     setStats(s);
     setLoading(false);
@@ -99,29 +98,6 @@ export default function MePage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  async function buy(key: string, price: number) {
-    if (!profile) return;
-    if (profile.coins < price) {
-      setMsg("金幣不足 🪙");
-      return;
-    }
-    const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    await supabase.from("user_items").upsert({ user_id: u.user!.id, key });
-    await supabase.from("profiles").update({ coins: profile.coins - price }).eq("id", u.user!.id);
-    setMsg("購買成功!到下方點「裝備」即可使用");
-    load();
-  }
-
-  async function equip(key: string, type: "theme" | "frame") {
-    const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    const col = type === "theme" ? "equipped_theme" : "equipped_frame";
-    await supabase.from("profiles").update({ [col]: key }).eq("id", u.user!.id);
-    setMsg("已裝備!重新整理頁面看效果");
-    load();
-  }
 
   async function saveName() {
     const name = nameInput.trim();
@@ -183,45 +159,21 @@ export default function MePage() {
     load();
   }
 
-  // 轉蛋:花 80 金幣抽一個還沒擁有的裝扮
-  async function gacha() {
-    if (!profile) return;
-    const price = 80;
-    if (profile.coins < price) {
-      setMsg("金幣不足 🪙(轉蛋要 80)");
-      return;
-    }
-    const pool = shopItems.filter(
-      (i) => i.active && i.price > 0 && (i.type === "theme" || i.type === "frame") && !owned.has(i.key),
-    );
-    const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    if (pool.length === 0) {
-      // 全收集完 → 退一半金幣
-      await supabase.from("profiles").update({ coins: profile.coins - price + 40 }).eq("id", u.user!.id);
-      setMsg("你已收集所有裝扮!退回 40 金幣 🪙");
-      load();
-      return;
-    }
-    const win = pool[Math.floor(Math.random() * pool.length)];
-    await supabase.from("user_items").upsert({ user_id: u.user!.id, key: win.key });
-    await supabase.from("profiles").update({ coins: profile.coins - price }).eq("id", u.user!.id);
-    setMsg(`🎉 轉蛋抽中:${win.label}!到對應分類點裝備`);
-    load();
-  }
-
   if (loading || !profile || !stats)
     return <p className="py-12 text-center text-slate-500">載入中…</p>;
 
   const lv = levelFromXp(profile.xp);
   const frame = itemByKey(shopItems, profile.equipped_frame);
+  const nameplate = itemByKey(shopItems, profile.equipped_nameplate);
+  const title = itemByKey(shopItems, profile.equipped_title);
   const aff = affectionProgress(profile.pet_affection ?? 0);
   const foods = shopItems.filter((i) => i.type === "food" && i.active);
 
   return (
     <div className="space-y-5">
       {/* 個人卡 */}
-      <section className="accent-hero rounded-2xl p-6 text-white shadow">
+      <section className="accent-hero rounded-2xl p-6 text-white shadow"
+        style={nameplate ? { background: nameplate.value } : undefined}>
         <div className="flex items-center gap-4">
           <div className="relative h-16 w-16 shrink-0">
             {profile.avatar_url ? (
@@ -236,8 +188,9 @@ export default function MePage() {
             {frame && <span className="absolute -right-1 -top-1 text-xl">{frame.value}</span>}
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="text-xl font-bold">{profile.nickname}</p>
+              {title && <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs font-semibold">{title.value}</span>}
               <button onClick={() => { setNameInput(profile.nickname); setEditing(!editing); }}
                 className="rounded-full bg-white/20 px-2 py-0.5 text-xs">✏️ 編輯</button>
             </div>
@@ -302,10 +255,10 @@ export default function MePage() {
           className={`flex-1 rounded-full py-2 text-sm font-semibold ${tab === "pet" ? "accent-bg text-white" : "bg-white text-slate-600"}`}>
           🐣 夥伴
         </button>
-        <button onClick={() => setTab("shop")}
-          className={`flex-1 rounded-full py-2 text-sm font-semibold ${tab === "shop" ? "accent-bg text-white" : "bg-white text-slate-600"}`}>
-          🛍️ 商城
-        </button>
+        <a href="/shop"
+          className="flex-1 rounded-full bg-white py-2 text-center text-sm font-semibold text-slate-600 hover:bg-slate-100">
+          🏪 商店 →
+        </a>
       </div>
 
       {msg && <p className="rounded-lg bg-amber-50 p-2 text-center text-sm text-amber-700">{msg}</p>}
@@ -395,51 +348,7 @@ export default function MePage() {
             })}
           </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {/* 轉蛋 */}
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-pink-500 to-violet-500 p-4 text-white shadow-sm">
-            <div>
-              <p className="font-bold">🥚 神秘轉蛋</p>
-              <p className="text-xs opacity-90">隨機抽一個裝扮(可能抽到稀有款)</p>
-            </div>
-            <button onClick={gacha} className="rounded-full bg-white/25 px-4 py-2 text-sm font-bold backdrop-blur hover:bg-white/35">
-              🪙 80 轉一次
-            </button>
-          </div>
-          {(["theme", "frame"] as const).map((type) => (
-            <div key={type}>
-              <h3 className="mb-2 font-bold">{type === "theme" ? "🎨 主題色" : "🖼️ 頭像框"}</h3>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {shopItems.filter((i) => i.type === type && i.active).map((item) => {
-                  const have = owned.has(item.key) || item.price === 0;
-                  const equipped =
-                    (type === "theme" ? profile.equipped_theme : profile.equipped_frame) === item.key;
-                  return (
-                    <div key={item.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">
-                      {type === "theme" ? (
-                        <div className="mx-auto h-8 w-8 rounded-full" style={{ backgroundColor: item.value }} />
-                      ) : (
-                        <div className="text-2xl">{item.value}</div>
-                      )}
-                      <p className="mt-1 text-sm font-semibold">{item.label}</p>
-                      {equipped ? (
-                        <span className="mt-1 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">使用中</span>
-                      ) : have ? (
-                        <button onClick={() => equip(item.key, type)}
-                          className="mt-1 rounded-full accent-bg px-3 py-1 text-xs text-white">裝備</button>
-                      ) : (
-                        <button onClick={() => buy(item.key, item.price)}
-                          className="mt-1 rounded-full bg-amber-500 px-3 py-1 text-xs text-white">🪙 {item.price}</button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

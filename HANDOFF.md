@@ -117,6 +117,11 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
   - ✅ **#三 商城 DB 化完成**(2026-06-15):shop_categories/shop_items 表 + seed(8 主題/4 框/3 食物)、`/me` 商城改讀 DB、`/admin/shop` 管理 CRUD、`/api/admin/shop` 後端(requireStaff)。`itemByKey` 改吃商品陣列;layout/page/friends 改用 DB 解析主題色/頭框。
   - ✅ **#二 寵物餵食完成**(2026-06-15):profiles.pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet 原子 RPC(防作弊);`/me` 夥伴分頁有好感度條(5 級親密度)+ 買/餵食物;Quiz.tsx 作答時夥伴打氣(台詞依好感度變親密,考試模式不打擾)。
   - ✅ **#四 玩家交易所完成**(2026-06-15):market_listings 表 + create_listing/cancel_listing/buy_listing/get_market 原子 RPC(託管制:上架即從 user_items 移出並卸下裝備,防一物多賣;購買檢查金幣/非自己/未擁有);`/market` 頁(上架/下架/購買),入口在「對戰」hub。**經濟系統三項全完成。**
+
+- 🔜 **遊戲化擴充(使用者 6/16 要求,分階段)**:
+  - ✅ **Phase 1a 商店獨立模組 + 商城專業化完成**(2026-06-16):導覽列新增「🏪 商店」(6 大類),`/shop` 雙分頁(官方商城 `ShopPanel` / 玩家交易所 `MarketPanel`);商品加稀有度(普通/稀有/史詩/傳說,有光效)、名牌底圖、稱號;`get_shop`/`buy_item` RPC(server 算每日精選 7 折、統一購買);`/me` 移除商城分頁(改連 /shop),個人卡套用名牌底圖+稱號。商城/交易所原 /me、/arena 入口已移除。
+  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…需 buff 表 + 觸發器/Quiz 整合)。
+  - 🔜 **Phase 2 夥伴大改**:+10 隻(5 寶可夢風 + 5 皮克敏風)、進階/進化(條件+華麗視覺)、探險遠征、技能加成養成、心情每日照顧。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -176,6 +181,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16:**遊戲化擴充 Phase 1a:商店獨立模組 + 商城專業化**。migration `20260616000000_shop_pro.sql`(rarity 欄、名牌底圖/稱號商品、equipped_nameplate/title、get_shop/buy_item/shop_featured_keys RPC,已套用)。前端:Nav 加「商店」分類;`/shop`(ShopPanel+MarketPanel 雙分頁);ShopPanel 有每日精選 7 折、稀有度光效、轉蛋、theme/frame/nameplate/title 裝備;`/me` 拔掉商城分頁改連 /shop 並在個人卡套名牌底圖+稱號;dashboard 顯示稱號。build 通過,get_shop/buy_item 已 E2E。**下一步:Phase 1b 加成道具 → Phase 2 夥伴大改。**
 - 2026-06-15(續二):**#四 玩家交易所完成**(經濟系統三項全收工)。新 migration `20260615020000_market.sql`(market_listings + create_listing/cancel_listing/buy_listing/get_market,security definer 原子交易、託管制,已套用)。新頁 `/market`(上架自己的裝扮、下架、逛市集購買),入口加在「對戰」hub。build 通過。
 - 2026-06-15(續):**#二 寵物餵食完成**。新 migration `20260615010000_pet_feeding.sql`(profiles 加 pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet security-definer 原子 RPC,已套用)。gamify.ts 加好感度親密度(5 級)+ 打氣台詞;Quiz.tsx 作答顯示夥伴打氣(考試模式不顯示);`/me` 夥伴分頁加好感度條 + 食物買/餵 UI。build 通過;RPC 已用 student 帳號 E2E 驗證(買扣金幣、餵加好感、NO_FOOD/NOT_FOOD/NOT_ENOUGH_COINS 防呆皆正確)。**下一步:9.5 #四 玩家交易所。**
 - 2026-06-15:**遊戲化經濟系統 #三 商城 DB 化完成**。新 migration `20260615000000_shop_db.sql`(shop_categories/shop_items + seed + staff-only RLS,已套用至 Supabase);商城目錄從 `gamify.ts` 寫死改為 DB 驅動(`fetchShopItems`/`itemByKey(items,key)`);`/me` 商城讀 DB;新增 `/admin/shop` 管理頁 + `/api/admin/shop` 後端 CRUD;layout/首頁/好友改 DB 解析主題色與頭框。build 通過、RLS 讀寫已驗證。

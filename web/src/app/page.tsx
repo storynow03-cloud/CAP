@@ -33,15 +33,15 @@ export default async function Dashboard() {
   const xp = profile?.xp ?? 0;
   const coins = profile?.coins ?? 0;
   const lv = levelFromXp(xp);
-  let frameValue: string | null = null;
-  if (profile?.equipped_frame) {
-    const { data: fi } = await supabase
-      .from("shop_items")
-      .select("value")
-      .eq("key", profile.equipped_frame)
-      .maybeSingle();
-    frameValue = fi?.value ?? null;
+  // 解析裝備的裝扮(頭框 / 稱號)
+  const cosmeticKeys = [profile?.equipped_frame, profile?.equipped_title].filter(Boolean) as string[];
+  const cosmetics = new Map<string, string>();
+  if (cosmeticKeys.length) {
+    const { data: ci } = await supabase.from("shop_items").select("key,value").in("key", cosmeticKeys);
+    (ci ?? []).forEach((r: { key: string; value: string }) => cosmetics.set(r.key, r.value));
   }
+  const frameValue = profile?.equipped_frame ? cosmetics.get(profile.equipped_frame) ?? null : null;
+  const titleValue = profile?.equipped_title ? cosmetics.get(profile.equipped_title) ?? null : null;
   // 預設任務(今天還沒作答時顯示 0 進度)
   const questDefs = [
     { key: "answer", label: "今日完成 15 題", target: 15 },
@@ -108,7 +108,9 @@ export default async function Dashboard() {
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full accent-bg" style={{ width: `${(lv.intoLevel / lv.levelSpan) * 100}%` }} />
             </div>
-            <p className="mt-1 truncate text-xs text-slate-400">Lv{lv.level}・{xp} XP</p>
+            <p className="mt-1 truncate text-xs text-slate-400">
+              Lv{lv.level}・{xp} XP{titleValue && <span className="ml-1 accent-text">{titleValue}</span>}
+            </p>
           </div>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center px-2">
