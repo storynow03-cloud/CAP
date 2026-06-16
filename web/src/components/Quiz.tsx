@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordAnswer } from "@/lib/engine";
 import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
-import { levelFromXp, petEmoji, petCheer, CUSTOM_PET } from "@/lib/gamify";
+import { levelFromXp, petCheer, fetchPets, type PetDef } from "@/lib/gamify";
+import PetView from "@/components/PetView";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -34,6 +35,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const [toast, setToast] = useState("");
   const [finished, setFinished] = useState(false);
   const [pet, setPet] = useState<{ key: string; level: number; affection: number; imageUrl: string | null } | null>(null);
+  const [petDefs, setPetDefs] = useState<PetDef[]>([]);
   const [cheer, setCheer] = useState("");
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
@@ -48,6 +50,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   // 載入夥伴(考試模式不打擾)
   useEffect(() => {
     if (mode === "exam") return;
+    fetchPets(supabase).then(setPetDefs);
     supabase
       .from("profiles")
       .select("pet,xp,pet_affection,pet_image_url")
@@ -212,12 +215,9 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
 
       {revealed && pet && cheer && (
         <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-          {pet.key === CUSTOM_PET && pet.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={pet.imageUrl} alt="夥伴" className="h-10 w-10 shrink-0 rounded-full object-cover" />
-          ) : (
-            <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level, pet.affection)}</span>
-          )}
+          <span className="shrink-0">
+            <PetView petKey={pet.key} defs={petDefs} level={pet.level} affection={pet.affection} customUrl={pet.imageUrl} px={40} emojiClass="text-3xl" />
+          </span>
           <p className="text-sm font-medium text-slate-700">{cheer}</p>
         </div>
       )}

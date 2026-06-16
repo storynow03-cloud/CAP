@@ -4,21 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SUBJECTS } from "@/lib/types";
 import {
-  ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
-  itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
+  ACHIEVEMENTS, levelFromXp, petStage, STAGE_NAMES,
+  itemByKey, fetchShopItems, fetchPets, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
   nextStageReq, FINAL_STAGE, petMood, PET_SKILLS, CUSTOM_PET, CUSTOM_PETS,
-  type AchStats, type ShopItem,
+  type AchStats, type ShopItem, type PetDef,
 } from "@/lib/gamify";
-
-/** 夥伴外觀:自訂圖用 <img>,否則用進化 emoji */
-function PetView({ pet, level, affection, imageUrl, px, emojiClass = "" }: {
-  pet: string; level: number; affection: number; imageUrl: string | null; px: number; emojiClass?: string;
-}) {
-  if (pet === CUSTOM_PET && imageUrl)
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={imageUrl} alt="夥伴" style={{ width: px, height: px }} className="inline-block rounded-full object-cover" />;
-  return <span className={emojiClass}>{petEmoji(pet, level, affection)}</span>;
-}
+import PetView from "@/components/PetView";
 
 interface Expedition {
   id: number;
@@ -60,6 +51,7 @@ interface Profile {
 export default function MePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [pets, setPets] = useState<PetDef[]>([]);
   const [inventory, setInventory] = useState<Map<string, number>>(new Map());
   const [expedition, setExpedition] = useState<Expedition | null>(null);
   const [expSubject, setExpSubject] = useState("math");
@@ -79,12 +71,13 @@ export default function MePage() {
     if (!u.user) return;
     const uid = u.user.id;
 
-    const [{ data: p }, { data: inv }, shop, { data: exp }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
+    const [{ data: p }, { data: inv }, shop, { data: exp }, petList, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
         supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_image_url,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
+        fetchPets(supabase),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid).eq("is_correct", true),
@@ -128,6 +121,7 @@ export default function MePage() {
 
     setProfile(p as Profile);
     setShopItems(shop);
+    setPets(petList);
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setExpedition(((exp ?? []) as Expedition[])[0] ?? null);
     setUnlocked(already);
@@ -315,7 +309,7 @@ export default function MePage() {
           </div>
           <div className="text-center">
             <div className={stage >= FINAL_STAGE ? "pet-final" : ""}>
-              <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={40} emojiClass="text-4xl" />
+              <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={40} emojiClass="text-4xl" />
             </div>
             <div className="text-xs opacity-80">{STAGE_NAMES[stage]}</div>
           </div>
@@ -409,11 +403,11 @@ export default function MePage() {
                 </>
               )}
               <span className={`relative ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>
-                <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={72} emojiClass="text-6xl" />
+                <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={72} emojiClass="text-6xl" />
               </span>
             </div>
             <p className="mt-2 font-bold">
-              {PETS.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[stage]}
+              {profile.pet === CUSTOM_PET ? "自訂夥伴" : pets.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[stage]}
               {stage >= FINAL_STAGE && <span className="ml-1 text-amber-500">完全體!</span>}
             </p>
             {nextReq ? (
@@ -488,7 +482,7 @@ export default function MePage() {
               <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-1 font-semibold">
-                    <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={20} emojiClass="" />
+                    <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={20} emojiClass="" />
                     {subjLabel(expedition.subject)}・{EXP_TIERS[expedition.tier - 1]?.label}
                   </p>
                   <span className="text-xs text-slate-400">
@@ -607,16 +601,16 @@ export default function MePage() {
               </div>
             </div>
 
-            {(["經典", "寶可夢", "皮克敏"] as const).map((origin) => (
+            {[...new Set(pets.map((p) => p.origin))].map((origin) => (
               <div key={origin} className="mt-2">
                 <p className="mb-1 text-xs font-semibold text-slate-400">{origin}</p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {PETS.filter((p) => p.origin === origin).map((p) => {
+                  {pets.filter((p) => p.origin === origin).map((p) => {
                     const active = profile.pet === p.key;
                     return (
                       <button key={p.key} onClick={() => choosePet(p.key)}
                         className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
-                        <div className="text-3xl">{p.stages[stage]}</div>
+                        <PetView petKey={p.key} defs={pets} level={lv.level} affection={petAff} px={32} emojiClass="text-3xl" />
                         <p className="mt-1 text-xs font-semibold">{p.name}</p>
                         {active && <span className="text-[10px] accent-text">使用中</span>}
                       </button>

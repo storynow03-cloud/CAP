@@ -125,7 +125,13 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
   - ✅ **Phase 2b 心情/每日照顧 + 技能加成完成**(2026-06-16):夥伴心情(距上次照顧天數,😊→😢);每日陪伴 `pet_play` RPC **需當天先做 5 題才能陪伴**(互動綁做題)、+好感度、照顧 streak(每 7 天給金幣);夥伴技能依好感度解鎖(🍀80金幣+20%、⚡200 XP+10%、🛡️400 XP+5%),作答觸發器自動加成。E2E 驗證 NEED_STUDY 門檻、技能加成數值、每日一次皆正確。
   - ✅ **Phase 2c 探險/遠征完成**(2026-06-16):pet_expeditions 表 + start/claim/cancel_expedition RPC;**作答觸發器自動推進該科探險進度**(做題=探險燃料),達標可領 XP/金幣/食物/好感度;/me 夥伴頁有探險面板(選科目+3 種規模、進度條、領獎/召回)。E2E 驗證做題自動推進+領獎正確。
   - ✅ **自訂夥伴圖片完成**(2026-06-16):profiles.pet_image_url;`/me` 夥伴頁可上傳自己的圖當夥伴(pet='custom'),內建範例「皇小米」(web/public/partner/);個人卡/showcase/探險/Quiz 打氣都會顯示自訂圖,進化光環/好感度/技能照常。
-  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)— 經濟系統擴充最後一塊。
+  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)。
+- 🔜 **遊戲化擴充 Phase 3(使用者 6/16 第二批要求,分階段):夥伴 DB 化 + 格位經濟 + 管理者 CRUD + 交易**:
+  - ✅ **Phase 3a 夥伴資料庫化完成**(2026-06-16):pet_defs 表(管理者可 CRUD、3 階段、每階段 emoji 或上傳圖)取代寫死的 PETS;進化 4 階改 3 階(幼年/成長期/完全體);新增共用 `PetView` 元件(emoji/圖片統一渲染),/me、好友、Quiz 全改 DB 驅動。seed 9 隻起始夥伴(經典4+寶可夢風5);皮克敏改由管理者上傳正確圖(避免版權)。
+  - 🔜 **Phase 3b 夥伴格位經濟**:免費 1 隻、每多開 1 隻 2000 金幣、上限 5(user_pets 表 + unlock_pet RPC)。
+  - 🔜 **Phase 3c 管理者夥伴 CRUD**:/admin 可新增/編輯/刪除夥伴 + 上傳階段圖片。
+  - 🔜 **Phase 3d 管理者交易所 CRUD**:可下架/刪除玩家 listing(moderation)。
+  - 🔜 **Phase 3e 自創夥伴上架交易所 + 進化圖/特效展示**。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -185,6 +191,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16(續5):**Phase 3a:夥伴資料庫化**。migration `20260616050000_pet_defs.sql`(pet_defs 表 + seed 9 隻 + staff CRUD RLS,已套用)。gamify.ts 移除寫死 PETS,改 fetchPets/petStageValue,進化 4→3 階;新增共用 `web/src/components/PetView.tsx`;/me、好友、Quiz 全改用 PetView + fetchPets。皮克敏 emoji 已移除(改由管理者上傳圖)。build 通過;pet_defs RLS 讀取已驗證;無孤兒 pet。**下一步:3b 格位經濟 → 3c 管理 CRUD → 3d 交易所 moderation → 3e 自創夥伴交易。**
 - 2026-06-16(續4):**自訂夥伴圖片**。migration `20260616040000_custom_pet.sql`(profiles.pet_image_url,已套用)。`/me` 夥伴頁可上傳圖片當夥伴(存 avatars bucket、pet='custom'),內建範例「皇小米」(已移到 web/public/partner/);PetView 元件統一渲染(emoji 或自訂圖),hero/showcase/探險/Quiz 都支援。build 通過。
 - 2026-06-16(續3):**Phase 2b:心情/每日照顧 + 技能加成**。migration `20260616030000_pet_mood_skills.sql`(profiles 加 pet_play_day/care_streak、pet_play RPC、on_attempt_gamify 加技能加成,已套用)。gamify.ts 加 petMood/PET_SKILLS;/me 夥伴頁加心情、🫶陪伴鈕、技能列。E2E:陪伴需當天 5 題(NEED_STUDY)、好感300 時 XP+10% 生效(19→20)、每日一次(ALREADY_PLAYED),全正確。**下一步:Phase 1b 加成道具(剩最後一塊)。**
 - 2026-06-16(續2):**Phase 2c:夥伴探險**。migration `20260616020000_expeditions.sql`(pet_expeditions 表 + start/claim/cancel_expedition RPC + on_attempt_gamify 加推進探險,已套用)。/me 夥伴頁加探險面板。E2E:start→插入 10 題作答→觸發器自動推進到 done→claim 發獎,全正確。**下一步:Phase 2b 心情/技能 → Phase 1b 加成道具。**
