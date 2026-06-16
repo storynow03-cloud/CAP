@@ -147,6 +147,10 @@ export interface PetDef {
   owner?: string | null;
   active?: boolean;
   sort?: number;
+  is_legendary?: boolean;
+  bonus_xp?: number;        // 作答 XP +%
+  bonus_coins?: number;     // 作答金幣 +%
+  bonus_affection?: number; // 每答對 +好感度
 }
 
 /** 讀取夥伴目錄(RLS:公開夥伴 + 自己的自訂夥伴)*/
@@ -165,12 +169,10 @@ export function petStageValue(def: PetDef | undefined, stage: number): string {
   return stage <= 0 ? def.stage1 : stage === 1 ? def.stage2 : def.stage3;
 }
 
-// 自訂夥伴:pet === CUSTOM_PET 時改用 pet_image_url 的圖片(進化光環/好感度照常)
+// 自訂夥伴:pet === CUSTOM_PET 時改用 pet_image_url 的圖片(玩家上傳自己的圖)
 export const CUSTOM_PET = "custom";
-// 內建範例自訂圖(放在 web/public/partner/)
-export const CUSTOM_PETS: { key: string; name: string; url: string }[] = [
-  { key: "皇小米", name: "皇小米", url: "/partner/皇小米.jpg" },
-];
+// 內建範例自訂圖(皇小米/英語老師已改為傳說夥伴 pet_defs,這裡留空)
+export const CUSTOM_PETS: { key: string; name: string; url: string }[] = [];
 
 // 進化條件:3 階段(幼年→成長期→完全體),每階段需「等級 + 好感度」雙達標(讀書 + 照顧)
 export const STAGE_REQ: { level: number; affection: number }[] = [

@@ -52,6 +52,7 @@ export default function MePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [pets, setPets] = useState<PetDef[]>([]);
+  const [ownedPets, setOwnedPets] = useState<Set<string>>(new Set());
   const [inventory, setInventory] = useState<Map<string, number>>(new Map());
   const [expedition, setExpedition] = useState<Expedition | null>(null);
   const [expSubject, setExpSubject] = useState("math");
@@ -71,13 +72,14 @@ export default function MePage() {
     if (!u.user) return;
     const uid = u.user.id;
 
-    const [{ data: p }, { data: inv }, shop, { data: exp }, petList, { data: ach }, { data: mastery }, ac, an, conq, exam] =
+    const [{ data: p }, { data: inv }, shop, { data: exp }, petList, { data: myPets }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
         supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_image_url,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
         fetchPets(supabase),
+        supabase.from("user_pets").select("pet_key").eq("user_id", uid),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid).eq("is_correct", true),
@@ -122,6 +124,7 @@ export default function MePage() {
     setProfile(p as Profile);
     setShopItems(shop);
     setPets(petList);
+    setOwnedPets(new Set((myPets ?? []).map((r) => r.pet_key)));
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setExpedition(((exp ?? []) as Expedition[])[0] ?? null);
     setUnlocked(already);
@@ -168,6 +171,23 @@ export default function MePage() {
     const { data: u } = await supabase.auth.getUser();
     await supabase.from("profiles").update({ pet: key }).eq("id", u.user!.id);
     setMsg("已選擇夥伴!做題就會幫牠長大 🐣");
+    load();
+  }
+
+  async function buyPet(p: PetDef) {
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("buy_pet", { p_key: p.key });
+    setBusy(false);
+    if (error) {
+      const m = error.message === "NOT_ENOUGH_COINS" ? "金幣不足 🪙"
+        : error.message === "ALREADY_OWNED" ? "你已經擁有了" : "購買失敗:" + error.message;
+      setMsg(m); return;
+    }
+    setMsg(`購買成功!已獲得傳說夥伴「${p.name}」✨`);
+    // 購買後直接換上
+    const { data: u } = await supabase.auth.getUser();
+    await supabase.from("profiles").update({ pet: p.key, pet_image_url: null }).eq("id", u.user!.id);
     load();
   }
 
@@ -266,6 +286,10 @@ export default function MePage() {
   const aff = affectionProgress(petAff);
   const stage = petStage(lv.level, petAff);
   const nextReq = nextStageReq(lv.level, petAff);
+  const activeDef = pets.find((pp) => pp.key === profile.pet);
+  const legendaryActive = !!activeDef?.is_legendary;
+  const showEffect = stage >= FINAL_STAGE || legendaryActive;
+  const legendaryPets = pets.filter((pp) => pp.is_legendary);
   const foods = shopItems.filter((i) => i.type === "food" && i.active);
 
   // 心情:距上次照顧(餵食或陪伴)的天數
@@ -308,7 +332,7 @@ export default function MePage() {
             <p className="text-sm opacity-90">Lv{lv.level}|XP {profile.xp}|🪙 {profile.coins}</p>
           </div>
           <div className="text-center">
-            <div className={stage >= FINAL_STAGE ? "pet-final" : ""}>
+            <div className={showEffect ? "pet-final" : ""}>
               <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={40} emojiClass="text-4xl" />
             </div>
             <div className="text-xs opacity-80">{STAGE_NAMES[stage]}</div>
@@ -392,17 +416,17 @@ export default function MePage() {
         </div>
       ) : tab === "pet" ? (
         <div className="space-y-4">
-          <div className={`rounded-2xl p-5 text-center shadow-sm ${stage >= FINAL_STAGE ? "bg-gradient-to-b from-amber-50 to-violet-50" : "bg-white"}`}>
+          <div className={`rounded-2xl p-5 text-center shadow-sm ${showEffect ? "bg-gradient-to-b from-amber-50 to-violet-50" : "bg-white"}`}>
             <div className="pet-showcase mx-auto grid h-24 w-24 place-items-center">
-              {stage >= FINAL_STAGE && <span className="pet-aura" />}
-              {stage >= FINAL_STAGE && (
+              {showEffect && <span className="pet-aura" />}
+              {showEffect && (
                 <>
                   <span className="pet-spark left-0 top-1 text-lg" style={{ animationDelay: "0s" }}>✨</span>
                   <span className="pet-spark right-1 top-3 text-base" style={{ animationDelay: ".6s" }}>⭐</span>
                   <span className="pet-spark bottom-1 left-3 text-base" style={{ animationDelay: "1.1s" }}>💫</span>
                 </>
               )}
-              <span className={`relative ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>
+              <span className={`relative ${showEffect ? "pet-final" : ""}`}>
                 <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={72} emojiClass="text-6xl" />
               </span>
             </div>
@@ -601,11 +625,47 @@ export default function MePage() {
               </div>
             </div>
 
-            {[...new Set(pets.map((p) => p.origin))].map((origin) => (
+            {/* 傳說特效夥伴(可購買,作答有加成與特效) */}
+            {legendaryPets.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-1 text-xs font-semibold text-amber-500">✨ 傳說夥伴(作答有特效加成)</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {legendaryPets.map((p) => {
+                    const owned = ownedPets.has(p.key);
+                    const active = profile.pet === p.key;
+                    return (
+                      <div key={p.key}
+                        className={`rounded-2xl p-3 text-center shadow-sm ring-2 ring-amber-300 ${active ? "bg-amber-50" : "bg-white"}`}>
+                        <div className="pet-showcase mx-auto grid h-14 w-14 place-items-center">
+                          <span className="pet-aura" />
+                          <span className="relative pet-final">
+                            <PetView petKey={p.key} defs={pets} level={lv.level} affection={petAff} px={48} emojiClass="text-4xl" />
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-bold">{p.name}</p>
+                        <p className="text-[10px] text-amber-600">
+                          {p.bonus_xp ? `XP+${p.bonus_xp}% ` : ""}{p.bonus_coins ? `金幣+${p.bonus_coins}% ` : ""}{p.bonus_affection ? `好感+${p.bonus_affection}` : ""}
+                        </p>
+                        {active ? (
+                          <span className="text-[10px] accent-text">使用中</span>
+                        ) : owned ? (
+                          <button onClick={() => choosePet(p.key)} className="mt-1 rounded-full accent-bg px-3 py-0.5 text-xs text-white">裝備</button>
+                        ) : (
+                          <button onClick={() => buyPet(p)} disabled={busy}
+                            className="mt-1 rounded-full bg-amber-500 px-3 py-0.5 text-xs text-white disabled:opacity-50">🪙 {p.price}</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {[...new Set(pets.filter((p) => !p.is_legendary).map((p) => p.origin))].map((origin) => (
               <div key={origin} className="mt-2">
                 <p className="mb-1 text-xs font-semibold text-slate-400">{origin}</p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {pets.filter((p) => p.origin === origin).map((p) => {
+                  {pets.filter((p) => p.origin === origin && !p.is_legendary).map((p) => {
                     const active = profile.pet === p.key;
                     return (
                       <button key={p.key} onClick={() => choosePet(p.key)}

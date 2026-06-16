@@ -213,14 +213,20 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
         )}
       </div>
 
-      {revealed && pet && cheer && (
-        <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-          <span className="shrink-0">
-            <PetView petKey={pet.key} defs={petDefs} level={pet.level} affection={pet.affection} customUrl={pet.imageUrl} px={40} emojiClass="text-3xl" />
-          </span>
-          <p className="text-sm font-medium text-slate-700">{cheer}</p>
-        </div>
-      )}
+      {revealed && pet && cheer && (() => {
+        const isLegendary = !!petDefs.find((d) => d.key === pet.key)?.is_legendary;
+        return (
+          <div className={`flex items-center gap-3 rounded-2xl p-3 shadow-sm ${isLegendary ? "bg-gradient-to-r from-amber-50 to-violet-50 ring-2 ring-amber-300" : "bg-white"}`}>
+            <span className={`pet-showcase relative grid h-11 w-11 shrink-0 place-items-center ${isLegendary ? "" : ""}`}>
+              {isLegendary && <span className="pet-aura" />}
+              <span className={`relative ${isLegendary ? "pet-final" : ""}`}>
+                <PetView petKey={pet.key} defs={petDefs} level={pet.level} affection={pet.affection} customUrl={pet.imageUrl} px={40} emojiClass="text-3xl" />
+              </span>
+            </span>
+            <p className="text-sm font-medium text-slate-700">{cheer}{isLegendary && " ✨"}</p>
+          </div>
+        );
+      })()}
 
       {toast && (
         <div className="rounded-xl bg-indigo-600 p-3 text-center font-semibold text-white">{toast}</div>

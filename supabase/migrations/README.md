@@ -24,6 +24,7 @@
 | 16 | `20260616040000_custom_pet.sql` | 自訂夥伴圖片:profiles.pet_image_url(pet='custom' 時顯示上傳圖,沿用 avatars bucket) |
 | 17 | `20260616050000_pet_defs.sql` | 夥伴資料庫化:pet_defs 表(3 階段、emoji 或圖片、staff CRUD、自訂夥伴 owner)+ seed 9 隻起始夥伴 |
 | 18 | `20260616060000_pet_images_bucket.sql` | 夥伴圖片儲存空間:pet-images bucket(公開讀、staff 寫),供管理者上傳夥伴階段圖 |
+| 19 | `20260616070000_legendary_pets.sql` | 傳說特效夥伴:pet_defs 加 is_legendary/bonus_xp/bonus_coins/bonus_affection、user_pets 表 + buy_pet RPC、作答觸發器套用傳說加成;seed 皇小米/英語老師(2000) |
 
 ## 如何重建資料庫
 
@@ -37,6 +38,6 @@ supabase db push        # 會依序套用 supabase/migrations/ 內所有檔案
 ```
 
 ## 注意
-- 觸發器 `on_attempt_gamify` 在第 4 檔建立、第 5 檔(加週 XP)、第 14 檔(推進探險)、第 15 檔(夥伴技能加成)逐步更新,屬正常演進。
+- 觸發器 `on_attempt_gamify` 在第 4 檔建立、第 5(週 XP)、第 14(探險)、第 15(技能加成)、第 19(傳說夥伴加成)檔逐步更新,屬正常演進。
 - 套用後,題庫資料用 `scripts/import-questions.mjs`(或 `rebuild-math-science.mjs`)匯入。
 - 測試帳號需另外用 Supabase Admin API 建立(見 HANDOFF.md)。

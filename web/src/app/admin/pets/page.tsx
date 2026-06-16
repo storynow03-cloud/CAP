@@ -15,13 +15,48 @@ interface Pet {
   rarity: string;
   sort: number;
   active: boolean;
+  price: number;
+  is_legendary: boolean;
+  bonus_xp: number;
+  bonus_coins: number;
+  bonus_affection: number;
 }
 
 const STAGE_LABELS = ["幼年", "成長期", "完全體"];
 const emptyForm = () => ({
   key: "", name: "", origin: "自訂", kind: "emoji" as const,
   stage1: "", stage2: "", stage3: "", rarity: "common", sort: 0,
+  price: 0, is_legendary: false, bonus_xp: 0, bonus_coins: 0, bonus_affection: 0,
 });
+
+// 傳說/購買設定(新增與編輯共用)
+function LegendaryFields({ v, set }: {
+  v: { price: number; is_legendary: boolean; bonus_xp: number; bonus_coins: number; bonus_affection: number };
+  set: (patch: Partial<{ price: number; is_legendary: boolean; bonus_xp: number; bonus_coins: number; bonus_affection: number }>) => void;
+}) {
+  return (
+    <div className="mt-2 rounded-lg bg-slate-50 p-2">
+      <label className="flex items-center gap-2 text-sm font-semibold">
+        <input type="checkbox" checked={v.is_legendary} onChange={(e) => set({ is_legendary: e.target.checked })} />
+        ✨ 傳說特效夥伴(作答有特效與加成)
+      </label>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <label className="text-xs text-slate-500">售價🪙
+          <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.price}
+            onChange={(e) => set({ price: Number(e.target.value) })} /></label>
+        <label className="text-xs text-slate-500">XP +%
+          <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.bonus_xp}
+            onChange={(e) => set({ bonus_xp: Number(e.target.value) })} /></label>
+        <label className="text-xs text-slate-500">金幣 +%
+          <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.bonus_coins}
+            onChange={(e) => set({ bonus_coins: Number(e.target.value) })} /></label>
+        <label className="text-xs text-slate-500">每答對好感
+          <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.bonus_affection}
+            onChange={(e) => set({ bonus_affection: Number(e.target.value) })} /></label>
+      </div>
+    </div>
+  );
+}
 
 function StageThumb({ kind, value }: { kind: string; value: string }) {
   if (!value) return <span className="text-slate-300">—</span>;
@@ -148,6 +183,7 @@ export default function AdminPetsPage() {
         <p className="mb-1 mt-3 text-sm font-semibold text-slate-500">三階段外觀</p>
         <StageInputs kind={form.kind}
           get={(k) => form[k]} set={(k, v) => setForm({ ...form, [k]: v })} />
+        <LegendaryFields v={form} set={(patch) => setForm({ ...form, ...patch })} />
         <button onClick={create} className="mt-3 w-full rounded-lg accent-bg py-2.5 font-semibold text-white">建立夥伴</button>
       </section>
 
@@ -173,6 +209,7 @@ export default function AdminPetsPage() {
                 </div>
                 <StageInputs kind={edit.kind}
                   get={(k) => edit[k]} set={(k, v) => setEdit({ ...edit, [k]: v })} />
+                <LegendaryFields v={edit} set={(patch) => setEdit({ ...edit, ...patch })} />
                 <div className="flex gap-2">
                   <button onClick={saveEdit} className="rounded-lg accent-bg px-4 py-1.5 text-sm font-semibold text-white">儲存</button>
                   <button onClick={() => setEdit(null)} className="rounded-lg bg-slate-100 px-4 py-1.5 text-sm">取消</button>
@@ -185,8 +222,11 @@ export default function AdminPetsPage() {
                   <StageThumb kind={p.kind} value={p.stage2} />
                   <StageThumb kind={p.kind} value={p.stage3} />
                   <div className="min-w-0">
-                    <p className="truncate font-semibold">{p.name}</p>
-                    <p className="truncate text-xs text-slate-400">{p.origin}|{p.kind}|{p.key}</p>
+                    <p className="truncate font-semibold">{p.name}{p.is_legendary && <span className="ml-1 text-amber-500">✨傳說</span>}</p>
+                    <p className="truncate text-xs text-slate-400">
+                      {p.origin}|{p.kind}|{p.key}{p.price ? `|🪙${p.price}` : ""}
+                      {p.is_legendary ? `|XP+${p.bonus_xp}%·金幣+${p.bonus_coins}%·好感+${p.bonus_affection}` : ""}
+                    </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
 
-const FIELDS = ["key", "name", "origin", "kind", "stage1", "stage2", "stage3", "rarity", "sort", "active"];
+const FIELDS = ["key", "name", "origin", "kind", "stage1", "stage2", "stage3", "rarity", "sort", "active",
+  "price", "is_legendary", "bonus_xp", "bonus_coins", "bonus_affection"];
+const NUM_FIELDS = new Set(["sort", "price", "bonus_xp", "bonus_coins", "bonus_affection"]);
 
 // 讀取所有夥伴(含 inactive,管理頁要看到全部;只回非自訂的公開夥伴)
 export async function GET() {
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "需要 key、名稱、三個階段內容" }, { status: 400 });
 
   const row: Record<string, unknown> = {};
-  for (const f of FIELDS) if (body[f] !== undefined) row[f] = f === "sort" ? Number(body[f]) || 0 : body[f];
+  for (const f of FIELDS) if (body[f] !== undefined) row[f] = NUM_FIELDS.has(f) ? Number(body[f]) || 0 : body[f];
   const r = await adminFetch("/rest/v1/pet_defs", {
     method: "POST",
     headers: { Prefer: "return=representation" },
@@ -39,7 +41,7 @@ export async function PATCH(req: NextRequest) {
   if (!body.id) return NextResponse.json({ error: "缺少 id" }, { status: 400 });
 
   const patch: Record<string, unknown> = {};
-  for (const f of FIELDS) if (body[f] !== undefined) patch[f] = f === "sort" ? Number(body[f]) || 0 : body[f];
+  for (const f of FIELDS) if (body[f] !== undefined) patch[f] = NUM_FIELDS.has(f) ? Number(body[f]) || 0 : body[f];
   if (!Object.keys(patch).length) return NextResponse.json({ error: "沒有要更新的欄位" }, { status: 400 });
   const r = await adminFetch(`/rest/v1/pet_defs?id=eq.${body.id}`, { method: "PATCH", body: JSON.stringify(patch) });
   if (!r.ok) {
