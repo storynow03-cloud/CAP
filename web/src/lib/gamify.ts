@@ -208,6 +208,25 @@ export function affectionProgress(affection: number): { level: number; into: num
 }
 export const AFFECTION_NAMES = ["陌生", "熟悉", "親近", "信賴", "形影不離"];
 
+// 夥伴心情(由「距上次照顧的天數」決定)
+export const PET_MOODS = [
+  { emoji: "😊", name: "開心" },     // 今天有照顧
+  { emoji: "🙂", name: "還不錯" },   // 1 天沒
+  { emoji: "😟", name: "想你了" },   // 2 天沒
+  { emoji: "😢", name: "好寂寞" },   // 3 天以上
+];
+export function petMood(daysSinceCare: number) {
+  const i = Math.min(PET_MOODS.length - 1, Math.max(0, daysSinceCare));
+  return { ...PET_MOODS[i], level: i };
+}
+
+// 夥伴技能(依好感度解鎖,作答時於 server 端自動加成 —— 與 on_attempt_gamify 一致)
+export const PET_SKILLS = [
+  { key: "lucky",    emoji: "🍀", name: "幸運", affection: 80,  desc: "作答金幣 +20%" },
+  { key: "diligent", emoji: "⚡", name: "勤奮", affection: 200, desc: "作答 XP +10%" },
+  { key: "tough",    emoji: "🛡️", name: "堅毅", affection: 400, desc: "作答 XP 再 +5%" },
+];
+
 // 作答時寵物打氣台詞(親密度越高越熱情)
 const CHEER = {
   correctHigh: ["太棒了!我就知道你最厲害 💛", "答對啦!跟你一起變強好開心!", "完美!我們是最佳拍檔 ✨", "厲害!你越來越強了呢!"],

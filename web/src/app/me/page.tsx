@@ -6,7 +6,7 @@ import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  nextStageReq, FINAL_STAGE, type AchStats, type ShopItem,
+  nextStageReq, FINAL_STAGE, petMood, PET_SKILLS, type AchStats, type ShopItem,
 } from "@/lib/gamify";
 
 interface Expedition {
@@ -38,6 +38,9 @@ interface Profile {
   equipped_title: string | null;
   pet: string;
   pet_affection: number;
+  pet_fed_at: string | null;
+  pet_play_day: string | null;
+  care_streak: number;
   avatar_url: string | null;
   role: string;
 }
@@ -66,7 +69,7 @@ export default function MePage() {
 
     const [{ data: p }, { data: inv }, shop, { data: exp }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,avatar_url,role").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
@@ -203,6 +206,23 @@ export default function MePage() {
   const claimExp = (id: number) => rpcExp("claim_expedition", { p_id: id }, "🎁 探險獎勵已領取!");
   const cancelExp = (id: number) => rpcExp("cancel_expedition", { p_id: id }, "已召回夥伴");
 
+  async function petPlay() {
+    setBusy(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("pet_play");
+    setBusy(false);
+    if (error) {
+      const m = error.message === "ALREADY_PLAYED" ? "今天已經陪過夥伴囉,明天再來!"
+        : error.message === "NEED_STUDY" ? "先完成今天至少 5 題,夥伴才有體力陪你玩 📚"
+        : "操作失敗:" + error.message;
+      setMsg(m);
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    setMsg(`夥伴超開心!好感度 +5${row?.bonus_coins ? `,連續照顧 ${row.streak} 天獎勵 ${row.bonus_coins}🪙!` : ` ❤️(連續照顧 ${row?.streak ?? 1} 天)`}`);
+    load();
+  }
+
   if (loading || !profile || !stats)
     return <p className="py-12 text-center text-slate-500">載入中…</p>;
 
@@ -215,6 +235,18 @@ export default function MePage() {
   const stage = petStage(lv.level, petAff);
   const nextReq = nextStageReq(lv.level, petAff);
   const foods = shopItems.filter((i) => i.type === "food" && i.active);
+
+  // 心情:距上次照顧(餵食或陪伴)的天數
+  const tpe = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" });
+  const todayStr = tpe(new Date());
+  const careDates = [
+    profile.pet_fed_at ? tpe(new Date(profile.pet_fed_at)) : null,
+    profile.pet_play_day,
+  ].filter(Boolean) as string[];
+  const lastCare = careDates.sort().pop() ?? null;
+  const daysSinceCare = lastCare ? Math.round((Date.parse(todayStr) - Date.parse(lastCare)) / 86400000) : 3;
+  const mood = petMood(daysSinceCare);
+  const playedToday = profile.pet_play_day === todayStr;
 
   return (
     <div className="space-y-5">
@@ -354,6 +386,24 @@ export default function MePage() {
               <p className="text-xs text-amber-600">已進化到完全體!繼續做題與照顧維持最佳狀態 ✨</p>
             )}
 
+            {/* 心情 + 每日陪伴 */}
+            <div className="mt-3 flex items-center justify-center gap-3">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">
+                心情 {mood.emoji} {mood.name}
+              </span>
+              {playedToday ? (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm text-emerald-700">今天已陪伴 ✅</span>
+              ) : (
+                <button onClick={petPlay} disabled={busy}
+                  className="rounded-full accent-bg px-4 py-1 text-sm font-semibold text-white disabled:opacity-50">
+                  🫶 陪伴夥伴
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-slate-400">
+              連續照顧 {profile.care_streak ?? 0} 天・需今天先做 5 題才能陪伴
+            </p>
+
             {/* 好感度 */}
             <div className="mt-4 text-left">
               <div className="mb-1 flex items-center justify-between text-sm">
@@ -369,6 +419,25 @@ export default function MePage() {
               <p className="mt-1 text-xs text-slate-400">
                 {aff.toNext > 0 ? `再 ${aff.toNext} 好感度可提升親密度` : "已達最高親密度!✨"}
               </p>
+            </div>
+          </div>
+
+          {/* 夥伴技能(好感度解鎖) */}
+          <div>
+            <h3 className="mb-2 font-bold">✨ 夥伴技能(好感度解鎖,做題自動加成)</h3>
+            <div className="grid grid-cols-3 gap-2">
+              {PET_SKILLS.map((sk) => {
+                const on = petAff >= sk.affection;
+                return (
+                  <div key={sk.key}
+                    className={`rounded-2xl p-3 text-center shadow-sm ${on ? "bg-white" : "bg-slate-100 opacity-60"}`}>
+                    <div className={`text-2xl ${on ? "" : "grayscale"}`}>{on ? sk.emoji : "🔒"}</div>
+                    <p className="mt-1 text-sm font-bold">{sk.name}</p>
+                    <p className="text-[11px] text-slate-500">{sk.desc}</p>
+                    <p className="text-[10px] text-slate-400">{on ? "已啟用" : `好感度 ${sk.affection}`}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
