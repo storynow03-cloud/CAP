@@ -124,7 +124,8 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
   - ✅ **Phase 2a 夥伴擴充 + 進化重做完成**(2026-06-16):PETS 從 4→14 隻(經典4/寶可夢風5/皮克敏風5,emoji 致敬);進化改吃「等級+好感度」雙條件(STAGE_REQ:Lv3→Lv7+好感50→Lv15+好感200),petStage/petEmoji 加 affection 參數;完全體有華麗光環/漂浮/閃光(globals.css);/me 夥伴頁顯示進化條件提示、夥伴按 origin 分組;get_friends_board 加回傳 pet_affection。
   - ✅ **Phase 2b 心情/每日照顧 + 技能加成完成**(2026-06-16):夥伴心情(距上次照顧天數,😊→😢);每日陪伴 `pet_play` RPC **需當天先做 5 題才能陪伴**(互動綁做題)、+好感度、照顧 streak(每 7 天給金幣);夥伴技能依好感度解鎖(🍀80金幣+20%、⚡200 XP+10%、🛡️400 XP+5%),作答觸發器自動加成。E2E 驗證 NEED_STUDY 門檻、技能加成數值、每日一次皆正確。
   - ✅ **Phase 2c 探險/遠征完成**(2026-06-16):pet_expeditions 表 + start/claim/cancel_expedition RPC;**作答觸發器自動推進該科探險進度**(做題=探險燃料),達標可領 XP/金幣/食物/好感度;/me 夥伴頁有探險面板(選科目+3 種規模、進度條、領獎/召回)。E2E 驗證做題自動推進+領獎正確。
-  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)。
+  - ✅ **自訂夥伴圖片完成**(2026-06-16):profiles.pet_image_url;`/me` 夥伴頁可上傳自己的圖當夥伴(pet='custom'),內建範例「皇小米」(web/public/partner/);個人卡/showcase/探險/Quiz 打氣都會顯示自訂圖,進化光環/好感度/技能照常。
+  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)— 經濟系統擴充最後一塊。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -184,6 +185,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16(續4):**自訂夥伴圖片**。migration `20260616040000_custom_pet.sql`(profiles.pet_image_url,已套用)。`/me` 夥伴頁可上傳圖片當夥伴(存 avatars bucket、pet='custom'),內建範例「皇小米」(已移到 web/public/partner/);PetView 元件統一渲染(emoji 或自訂圖),hero/showcase/探險/Quiz 都支援。build 通過。
 - 2026-06-16(續3):**Phase 2b:心情/每日照顧 + 技能加成**。migration `20260616030000_pet_mood_skills.sql`(profiles 加 pet_play_day/care_streak、pet_play RPC、on_attempt_gamify 加技能加成,已套用)。gamify.ts 加 petMood/PET_SKILLS;/me 夥伴頁加心情、🫶陪伴鈕、技能列。E2E:陪伴需當天 5 題(NEED_STUDY)、好感300 時 XP+10% 生效(19→20)、每日一次(ALREADY_PLAYED),全正確。**下一步:Phase 1b 加成道具(剩最後一塊)。**
 - 2026-06-16(續2):**Phase 2c:夥伴探險**。migration `20260616020000_expeditions.sql`(pet_expeditions 表 + start/claim/cancel_expedition RPC + on_attempt_gamify 加推進探險,已套用)。/me 夥伴頁加探險面板。E2E:start→插入 10 題作答→觸發器自動推進到 done→claim 發獎,全正確。**下一步:Phase 2b 心情/技能 → Phase 1b 加成道具。**
 - 2026-06-16(續):**Phase 2a:夥伴擴充 + 進化重做**。migration `20260616010000_pets_evolution.sql`(get_friends_board 加 pet_affection,已套用)。gamify.ts:PETS 4→14 隻(經典/寶可夢風/皮克敏風)、進化改「等級+好感度」雙條件(STAGE_REQ)、petStage/petEmoji 加 affection 參數、nextStageReq;globals.css 加完全體華麗光環動畫;/me 夥伴頁:華麗 showcase + 進化條件提示 + 夥伴 origin 分組;friends/Quiz 帶入 affection。build 通過。**下一步:Phase 2b 心情/技能 → 2c 探險。**

@@ -21,6 +21,7 @@
 | 13 | `20260616010000_pets_evolution.sql` | 夥伴進化改吃等級+好感度:get_friends_board RPC 加回傳 pet_affection |
 | 14 | `20260616020000_expeditions.sql` | 夥伴探險:pet_expeditions 表 + start/claim/cancel_expedition RPC;作答觸發器 on_attempt_gamify 加推進該科探險進度 |
 | 15 | `20260616030000_pet_mood_skills.sql` | 夥伴心情/每日陪伴:profiles.pet_play_day/care_streak、pet_play RPC(需當天作答);作答觸發器加夥伴技能加成(好感度 80/200/400 → 金幣/XP 加成) |
+| 16 | `20260616040000_custom_pet.sql` | 自訂夥伴圖片:profiles.pet_image_url(pet='custom' 時顯示上傳圖,沿用 avatars bucket) |
 
 ## 如何重建資料庫
 

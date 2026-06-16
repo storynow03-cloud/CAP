@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordAnswer } from "@/lib/engine";
 import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
-import { levelFromXp, petEmoji, petCheer } from "@/lib/gamify";
+import { levelFromXp, petEmoji, petCheer, CUSTOM_PET } from "@/lib/gamify";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -33,7 +33,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const [streak, setStreak] = useState(0); // 正為連對,負為連錯
   const [toast, setToast] = useState("");
   const [finished, setFinished] = useState(false);
-  const [pet, setPet] = useState<{ key: string; level: number; affection: number } | null>(null);
+  const [pet, setPet] = useState<{ key: string; level: number; affection: number; imageUrl: string | null } | null>(null);
   const [cheer, setCheer] = useState("");
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
@@ -50,12 +50,12 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
     if (mode === "exam") return;
     supabase
       .from("profiles")
-      .select("pet,xp,pet_affection")
+      .select("pet,xp,pet_affection,pet_image_url")
       .eq("id", userId)
       .maybeSingle()
       .then(({ data }) => {
         if (data)
-          setPet({ key: data.pet, level: levelFromXp(data.xp ?? 0).level, affection: data.pet_affection ?? 0 });
+          setPet({ key: data.pet, level: levelFromXp(data.xp ?? 0).level, affection: data.pet_affection ?? 0, imageUrl: data.pet_image_url ?? null });
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -212,7 +212,12 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
 
       {revealed && pet && cheer && (
         <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-          <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level, pet.affection)}</span>
+          {pet.key === CUSTOM_PET && pet.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pet.imageUrl} alt="夥伴" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+          ) : (
+            <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level, pet.affection)}</span>
+          )}
           <p className="text-sm font-medium text-slate-700">{cheer}</p>
         </div>
       )}

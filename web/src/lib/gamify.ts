@@ -157,6 +157,13 @@ export const PETS: PetDef[] = [
   { key: "pik_purple", name: "紫皮", origin: "皮克敏", stages: ["🌰", "🌱", "🍇", "🔮"] },
 ];
 
+// 自訂夥伴:pet === CUSTOM_PET 時改用 pet_image_url 的圖片(進化光環/好感度照常)
+export const CUSTOM_PET = "custom";
+// 內建範例自訂圖(放在 web/public/partner/)
+export const CUSTOM_PETS: { key: string; name: string; url: string }[] = [
+  { key: "皇小米", name: "皇小米", url: "/partner/皇小米.jpg" },
+];
+
 // 進化條件:每階段需「等級」與「好感度」雙達標(讀書 + 照顧)
 export const STAGE_REQ: { level: number; affection: number }[] = [
   { level: 0, affection: 0 },     // 蛋

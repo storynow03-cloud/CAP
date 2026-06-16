@@ -6,8 +6,19 @@ import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  nextStageReq, FINAL_STAGE, petMood, PET_SKILLS, type AchStats, type ShopItem,
+  nextStageReq, FINAL_STAGE, petMood, PET_SKILLS, CUSTOM_PET, CUSTOM_PETS,
+  type AchStats, type ShopItem,
 } from "@/lib/gamify";
+
+/** 夥伴外觀:自訂圖用 <img>,否則用進化 emoji */
+function PetView({ pet, level, affection, imageUrl, px, emojiClass = "" }: {
+  pet: string; level: number; affection: number; imageUrl: string | null; px: number; emojiClass?: string;
+}) {
+  if (pet === CUSTOM_PET && imageUrl)
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={imageUrl} alt="夥伴" style={{ width: px, height: px }} className="inline-block rounded-full object-cover" />;
+  return <span className={emojiClass}>{petEmoji(pet, level, affection)}</span>;
+}
 
 interface Expedition {
   id: number;
@@ -37,6 +48,7 @@ interface Profile {
   equipped_nameplate: string | null;
   equipped_title: string | null;
   pet: string;
+  pet_image_url: string | null;
   pet_affection: number;
   pet_fed_at: string | null;
   pet_play_day: string | null;
@@ -69,7 +81,7 @@ export default function MePage() {
 
     const [{ data: p }, { data: inv }, shop, { data: exp }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_image_url,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
@@ -162,6 +174,32 @@ export default function MePage() {
     const { data: u } = await supabase.auth.getUser();
     await supabase.from("profiles").update({ pet: key }).eq("id", u.user!.id);
     setMsg("已選擇夥伴!做題就會幫牠長大 🐣");
+    load();
+  }
+
+  async function chooseCustom(url: string) {
+    const supabase = createClient();
+    const { data: u } = await supabase.auth.getUser();
+    await supabase.from("profiles").update({ pet: CUSTOM_PET, pet_image_url: url }).eq("id", u.user!.id);
+    setMsg("已換上自訂夥伴!🖼️");
+    load();
+  }
+
+  async function uploadPetImage(file: File) {
+    if (!file.type.startsWith("image/")) { setMsg("請選圖片檔"); return; }
+    if (file.size > 5 * 1024 * 1024) { setMsg("圖片請小於 5MB"); return; }
+    setUploading(true);
+    const supabase = createClient();
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u.user!.id;
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${uid}/pet_${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (error) { setMsg("上傳失敗:" + error.message); setUploading(false); return; }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    await supabase.from("profiles").update({ pet: CUSTOM_PET, pet_image_url: pub.publicUrl }).eq("id", uid);
+    setUploading(false);
+    setMsg("自訂夥伴已上傳並換上!🖼️");
     load();
   }
 
@@ -276,7 +314,9 @@ export default function MePage() {
             <p className="text-sm opacity-90">Lv{lv.level}|XP {profile.xp}|🪙 {profile.coins}</p>
           </div>
           <div className="text-center">
-            <div className={`text-4xl ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>{petEmoji(profile.pet, lv.level, petAff)}</div>
+            <div className={stage >= FINAL_STAGE ? "pet-final" : ""}>
+              <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={40} emojiClass="text-4xl" />
+            </div>
             <div className="text-xs opacity-80">{STAGE_NAMES[stage]}</div>
           </div>
         </div>
@@ -368,8 +408,8 @@ export default function MePage() {
                   <span className="pet-spark bottom-1 left-3 text-base" style={{ animationDelay: "1.1s" }}>💫</span>
                 </>
               )}
-              <span className={`relative text-6xl ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>
-                {petEmoji(profile.pet, lv.level, petAff)}
+              <span className={`relative ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>
+                <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={72} emojiClass="text-6xl" />
               </span>
             </div>
             <p className="mt-2 font-bold">
@@ -447,9 +487,9 @@ export default function MePage() {
             {expedition ? (
               <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold">
-                    {petEmoji(profile.pet, lv.level, petAff)} {subjLabel(expedition.subject)}・
-                    {EXP_TIERS[expedition.tier - 1]?.label}
+                  <p className="flex items-center gap-1 font-semibold">
+                    <PetView pet={profile.pet} level={lv.level} affection={petAff} imageUrl={profile.pet_image_url} px={20} emojiClass="" />
+                    {subjLabel(expedition.subject)}・{EXP_TIERS[expedition.tier - 1]?.label}
                   </p>
                   <span className="text-xs text-slate-400">
                     {Math.min(expedition.progress_count, expedition.target_count)}/{expedition.target_count} 題
@@ -530,6 +570,43 @@ export default function MePage() {
 
           <div>
             <h3 className="font-bold">選擇夥伴(換夥伴會沿用目前等級與好感度)</h3>
+
+            {/* 自訂夥伴(上傳自己的圖) */}
+            <div className="mt-2">
+              <p className="mb-1 text-xs font-semibold text-slate-400">自訂(用你自己的圖)</p>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {CUSTOM_PETS.map((c) => {
+                  const active = profile.pet === CUSTOM_PET && profile.pet_image_url === c.url;
+                  return (
+                    <button key={c.key} onClick={() => chooseCustom(c.url)}
+                      className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.url} alt={c.name} className="mx-auto h-12 w-12 rounded-full object-cover" />
+                      <p className="mt-1 text-xs font-semibold">{c.name}</p>
+                      {active && <span className="text-[10px] accent-text">使用中</span>}
+                    </button>
+                  );
+                })}
+                {/* 已上傳的自訂圖(非內建) */}
+                {profile.pet === CUSTOM_PET && profile.pet_image_url &&
+                  !CUSTOM_PETS.some((c) => c.url === profile.pet_image_url) && (
+                    <div className="rounded-2xl border-2 accent-border bg-white p-3 text-center shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={profile.pet_image_url} alt="自訂" className="mx-auto h-12 w-12 rounded-full object-cover" />
+                      <p className="mt-1 text-xs font-semibold">我的圖</p>
+                      <span className="text-[10px] accent-text">使用中</span>
+                    </div>
+                  )}
+                {/* 上傳 */}
+                <label className="grid cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-slate-300 p-3 text-center hover:border-indigo-300">
+                  <span className="text-2xl">{uploading ? "⏳" : "📷"}</span>
+                  <span className="mt-1 text-xs font-semibold text-slate-500">{uploading ? "上傳中" : "上傳圖片"}</span>
+                  <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                    onChange={(e) => e.target.files?.[0] && uploadPetImage(e.target.files[0])} />
+                </label>
+              </div>
+            </div>
+
             {(["經典", "寶可夢", "皮克敏"] as const).map((origin) => (
               <div key={origin} className="mt-2">
                 <p className="mb-1 text-xs font-semibold text-slate-400">{origin}</p>
