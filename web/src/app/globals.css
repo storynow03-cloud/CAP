@@ -34,6 +34,19 @@ body {
   background-image: linear-gradient(135deg, var(--accent, #4f46e5), var(--accent-dark, #312e81));
 }
 
+/* 夥伴展示:完全體華麗光環 + 漂浮 + 閃光 */
+@keyframes pet-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes pet-sparkle { 0%, 100% { opacity: .35; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.25); } }
+@keyframes pet-aura { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: .9; transform: scale(1.12); } }
+.pet-showcase { position: relative; }
+.pet-aura {
+  position: absolute; inset: 0; border-radius: 9999px;
+  background: radial-gradient(circle at 50% 45%, rgba(250,204,21,.45), rgba(168,85,247,.22) 45%, transparent 70%);
+  animation: pet-aura 3s ease-in-out infinite;
+}
+.pet-final { animation: pet-float 3s ease-in-out infinite; filter: drop-shadow(0 0 10px rgba(250,204,21,.85)); }
+.pet-spark { position: absolute; animation: pet-sparkle 1.8s ease-in-out infinite; }
+
 /* 題目內嵌圖片(數學式、幾何圖、圖表) */
 .qhtml img {
   display: inline-block;

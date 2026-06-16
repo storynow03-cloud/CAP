@@ -121,7 +121,10 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 - 🔜 **遊戲化擴充(使用者 6/16 要求,分階段)**:
   - ✅ **Phase 1a 商店獨立模組 + 商城專業化完成**(2026-06-16):導覽列新增「🏪 商店」(6 大類),`/shop` 雙分頁(官方商城 `ShopPanel` / 玩家交易所 `MarketPanel`);商品加稀有度(普通/稀有/史詩/傳說,有光效)、名牌底圖、稱號;`get_shop`/`buy_item` RPC(server 算每日精選 7 折、統一購買);`/me` 移除商城分頁(改連 /shop),個人卡套用名牌底圖+稱號。商城/交易所原 /me、/arena 入口已移除。
   - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…需 buff 表 + 觸發器/Quiz 整合)。
-  - 🔜 **Phase 2 夥伴大改**:+10 隻(5 寶可夢風 + 5 皮克敏風)、進階/進化(條件+華麗視覺)、探險遠征、技能加成養成、心情每日照顧。
+  - ✅ **Phase 2a 夥伴擴充 + 進化重做完成**(2026-06-16):PETS 從 4→14 隻(經典4/寶可夢風5/皮克敏風5,emoji 致敬);進化改吃「等級+好感度」雙條件(STAGE_REQ:Lv3→Lv7+好感50→Lv15+好感200),petStage/petEmoji 加 affection 參數;完全體有華麗光環/漂浮/閃光(globals.css);/me 夥伴頁顯示進化條件提示、夥伴按 origin 分組;get_friends_board 加回傳 pet_affection。
+  - 🔜 **Phase 2b 心情每日照顧 + 技能加成**(夥伴心情每日衰減、做題回復、照顧 streak;做題解鎖技能給 XP/金幣加成)。
+  - 🔜 **Phase 2c 探險/遠征**(派夥伴出任務,需完成題組才能領獎)。
+  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -181,6 +184,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16(續):**Phase 2a:夥伴擴充 + 進化重做**。migration `20260616010000_pets_evolution.sql`(get_friends_board 加 pet_affection,已套用)。gamify.ts:PETS 4→14 隻(經典/寶可夢風/皮克敏風)、進化改「等級+好感度」雙條件(STAGE_REQ)、petStage/petEmoji 加 affection 參數、nextStageReq;globals.css 加完全體華麗光環動畫;/me 夥伴頁:華麗 showcase + 進化條件提示 + 夥伴 origin 分組;friends/Quiz 帶入 affection。build 通過。**下一步:Phase 2b 心情/技能 → 2c 探險。**
 - 2026-06-16:**遊戲化擴充 Phase 1a:商店獨立模組 + 商城專業化**。migration `20260616000000_shop_pro.sql`(rarity 欄、名牌底圖/稱號商品、equipped_nameplate/title、get_shop/buy_item/shop_featured_keys RPC,已套用)。前端:Nav 加「商店」分類;`/shop`(ShopPanel+MarketPanel 雙分頁);ShopPanel 有每日精選 7 折、稀有度光效、轉蛋、theme/frame/nameplate/title 裝備;`/me` 拔掉商城分頁改連 /shop 並在個人卡套名牌底圖+稱號;dashboard 顯示稱號。build 通過,get_shop/buy_item 已 E2E。**下一步:Phase 1b 加成道具 → Phase 2 夥伴大改。**
 - 2026-06-15(續二):**#四 玩家交易所完成**(經濟系統三項全收工)。新 migration `20260615020000_market.sql`(market_listings + create_listing/cancel_listing/buy_listing/get_market,security definer 原子交易、託管制,已套用)。新頁 `/market`(上架自己的裝扮、下架、逛市集購買),入口加在「對戰」hub。build 通過。
 - 2026-06-15(續):**#二 寵物餵食完成**。新 migration `20260615010000_pet_feeding.sql`(profiles 加 pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet security-definer 原子 RPC,已套用)。gamify.ts 加好感度親密度(5 級)+ 打氣台詞;Quiz.tsx 作答顯示夥伴打氣(考試模式不顯示);`/me` 夥伴分頁加好感度條 + 食物買/餵 UI。build 通過;RPC 已用 student 帳號 E2E 驗證(買扣金幣、餵加好感、NO_FOOD/NOT_FOOD/NOT_ENOUGH_COINS 防呆皆正確)。**下一步:9.5 #四 玩家交易所。**

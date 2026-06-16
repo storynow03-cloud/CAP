@@ -130,30 +130,62 @@ export const itemByKey = (
   key: string | null | undefined,
 ) => items.find((i) => i.key === key);
 
-// ===== 學習夥伴(寵物,隨等級進化)=====
+// ===== 學習夥伴(寵物,隨等級+好感度進化)=====
 export interface PetDef {
   key: string;
   name: string;
+  origin: "經典" | "寶可夢" | "皮克敏";
   stages: [string, string, string, string]; // 蛋 → 幼 → 成長 → 完全體
 }
 export const PETS: PetDef[] = [
-  { key: "cat", name: "貓貓", stages: ["🥚", "🐱", "🐈", "🦁"] },
-  { key: "dog", name: "狗狗", stages: ["🥚", "🐶", "🐕", "🐺"] },
-  { key: "dragon", name: "龍龍", stages: ["🥚", "🦎", "🐲", "🐉"] },
-  { key: "bird", name: "鳥鳥", stages: ["🥚", "🐤", "🐦", "🦅"] },
+  // 經典(原有)
+  { key: "cat", name: "貓貓", origin: "經典", stages: ["🥚", "🐱", "🐈", "🦁"] },
+  { key: "dog", name: "狗狗", origin: "經典", stages: ["🥚", "🐶", "🐕", "🐺"] },
+  { key: "dragon", name: "龍龍", origin: "經典", stages: ["🥚", "🦎", "🐲", "🐉"] },
+  { key: "bird", name: "鳥鳥", origin: "經典", stages: ["🥚", "🐤", "🐦", "🦅"] },
+  // 寶可夢風(致敬,emoji 呈現)
+  { key: "spark",  name: "電光鼠", origin: "寶可夢", stages: ["🥚", "🐭", "🐹", "⚡"] },
+  { key: "flame",  name: "火蜥蜴", origin: "寶可夢", stages: ["🥚", "🦎", "🐊", "🔥"] },
+  { key: "leaf",   name: "種子龍", origin: "寶可夢", stages: ["🥚", "🌱", "🌿", "🌳"] },
+  { key: "aqua",   name: "水靈龜", origin: "寶可夢", stages: ["🥚", "🐢", "🐉", "🌊"] },
+  { key: "ghost",  name: "夜魅",   origin: "寶可夢", stages: ["🥚", "👻", "🦇", "🌙"] },
+  // 皮克敏風(致敬,從種子發芽到開花)
+  { key: "pik_red",    name: "紅皮", origin: "皮克敏", stages: ["🌰", "🌱", "🌹", "🌺"] },
+  { key: "pik_blue",   name: "藍皮", origin: "皮克敏", stages: ["🌰", "🌱", "🪻", "💠"] },
+  { key: "pik_yellow", name: "黃皮", origin: "皮克敏", stages: ["🌰", "🌱", "🌼", "🌻"] },
+  { key: "pik_white",  name: "白皮", origin: "皮克敏", stages: ["🌰", "🌱", "🤍", "🕊️"] },
+  { key: "pik_purple", name: "紫皮", origin: "皮克敏", stages: ["🌰", "🌱", "🍇", "🔮"] },
 ];
-/** 由等級決定進化階段 */
-export function petStage(level: number): number {
-  if (level >= 15) return 3;
-  if (level >= 7) return 2;
-  if (level >= 3) return 1;
-  return 0;
-}
+
+// 進化條件:每階段需「等級」與「好感度」雙達標(讀書 + 照顧)
+export const STAGE_REQ: { level: number; affection: number }[] = [
+  { level: 0, affection: 0 },     // 蛋
+  { level: 3, affection: 0 },     // 幼年:只要等級
+  { level: 7, affection: 50 },    // 成長期:要餵養
+  { level: 15, affection: 200 },  // 完全體:要長期照顧
+];
 export const STAGE_NAMES = ["蛋", "幼年", "成長期", "完全體"];
-export function petEmoji(petKey: string | null | undefined, level: number): string {
-  const p = PETS.find((x) => x.key === petKey) ?? PETS[0];
-  return p.stages[petStage(level)];
+
+/** 由等級 + 好感度決定進化階段。affection 省略時視為只看等級(向後相容)。 */
+export function petStage(level: number, affection: number = Number.POSITIVE_INFINITY): number {
+  let s = 0;
+  for (let i = 1; i < STAGE_REQ.length; i++) {
+    if (level >= STAGE_REQ[i].level && affection >= STAGE_REQ[i].affection) s = i;
+    else break;
+  }
+  return s;
 }
+/** 下一階段的條件(已完全體回 null)*/
+export function nextStageReq(level: number, affection: number): { stage: number; level: number; affection: number } | null {
+  const s = petStage(level, affection);
+  if (s >= STAGE_REQ.length - 1) return null;
+  return { stage: s + 1, ...STAGE_REQ[s + 1] };
+}
+export function petEmoji(petKey: string | null | undefined, level: number, affection: number = Number.POSITIVE_INFINITY): string {
+  const p = PETS.find((x) => x.key === petKey) ?? PETS[0];
+  return p.stages[petStage(level, affection)];
+}
+export const FINAL_STAGE = STAGE_REQ.length - 1;
 
 // ===== 寵物好感度(餵食累積)=====
 // 親密度分 5 級(0~4),門檻為「累積好感度」。

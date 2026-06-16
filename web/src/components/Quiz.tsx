@@ -212,7 +212,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
 
       {revealed && pet && cheer && (
         <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-          <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level)}</span>
+          <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level, pet.affection)}</span>
           <p className="text-sm font-medium text-slate-700">{cheer}</p>
         </div>
       )}

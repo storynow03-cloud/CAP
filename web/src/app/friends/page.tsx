@@ -11,6 +11,7 @@ interface BoardRow {
   xp: number;
   week_xp: number;
   pet: string;
+  pet_affection: number;
   frame: string | null;
   friend_code: string;
   is_me: boolean;
@@ -113,7 +114,7 @@ export default function FriendsPage() {
                 <span className="w-7 text-center text-lg">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
                 </span>
-                <span className="text-xl">{petEmoji(r.pet, lv.level)}</span>
+                <span className="text-xl">{petEmoji(r.pet, lv.level, r.pet_affection ?? 0)}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
                     {r.nickname}{r.is_me && "(我)"} {frameValue ?? ""}

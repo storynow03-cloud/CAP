@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  type AchStats, type ShopItem,
+  nextStageReq, FINAL_STAGE, type AchStats, type ShopItem,
 } from "@/lib/gamify";
 
 interface Profile {
@@ -166,7 +166,10 @@ export default function MePage() {
   const frame = itemByKey(shopItems, profile.equipped_frame);
   const nameplate = itemByKey(shopItems, profile.equipped_nameplate);
   const title = itemByKey(shopItems, profile.equipped_title);
-  const aff = affectionProgress(profile.pet_affection ?? 0);
+  const petAff = profile.pet_affection ?? 0;
+  const aff = affectionProgress(petAff);
+  const stage = petStage(lv.level, petAff);
+  const nextReq = nextStageReq(lv.level, petAff);
   const foods = shopItems.filter((i) => i.type === "food" && i.active);
 
   return (
@@ -197,8 +200,8 @@ export default function MePage() {
             <p className="text-sm opacity-90">Lv{lv.level}|XP {profile.xp}|🪙 {profile.coins}</p>
           </div>
           <div className="text-center">
-            <div className="text-4xl">{petEmoji(profile.pet, lv.level)}</div>
-            <div className="text-xs opacity-80">{STAGE_NAMES[petStage(lv.level)]}</div>
+            <div className={`text-4xl ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>{petEmoji(profile.pet, lv.level, petAff)}</div>
+            <div className="text-xs opacity-80">{STAGE_NAMES[stage]}</div>
           </div>
         </div>
 
@@ -279,14 +282,33 @@ export default function MePage() {
         </div>
       ) : tab === "pet" ? (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
-            <div className="text-6xl">{petEmoji(profile.pet, lv.level)}{aff.level >= MAX_AFFECTION_LEVEL && " ✨"}</div>
+          <div className={`rounded-2xl p-5 text-center shadow-sm ${stage >= FINAL_STAGE ? "bg-gradient-to-b from-amber-50 to-violet-50" : "bg-white"}`}>
+            <div className="pet-showcase mx-auto grid h-24 w-24 place-items-center">
+              {stage >= FINAL_STAGE && <span className="pet-aura" />}
+              {stage >= FINAL_STAGE && (
+                <>
+                  <span className="pet-spark left-0 top-1 text-lg" style={{ animationDelay: "0s" }}>✨</span>
+                  <span className="pet-spark right-1 top-3 text-base" style={{ animationDelay: ".6s" }}>⭐</span>
+                  <span className="pet-spark bottom-1 left-3 text-base" style={{ animationDelay: "1.1s" }}>💫</span>
+                </>
+              )}
+              <span className={`relative text-6xl ${stage >= FINAL_STAGE ? "pet-final" : ""}`}>
+                {petEmoji(profile.pet, lv.level, petAff)}
+              </span>
+            </div>
             <p className="mt-2 font-bold">
-              {PETS.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[petStage(lv.level)]}
+              {PETS.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[stage]}
+              {stage >= FINAL_STAGE && <span className="ml-1 text-amber-500">完全體!</span>}
             </p>
-            <p className="text-xs text-slate-500">
-              夥伴會隨你的等級進化:Lv3 幼年 → Lv7 成長期 → Lv15 完全體。多做題讓牠長大!
-            </p>
+            {nextReq ? (
+              <p className="text-xs text-slate-500">
+                下一階段「{STAGE_NAMES[nextReq.stage]}」:需 Lv{nextReq.level}
+                {nextReq.affection > 0 && ` 且好感度 ${nextReq.affection}`}
+                (目前 Lv{lv.level}・好感度 {petAff})
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600">已進化到完全體!繼續做題與照顧維持最佳狀態 ✨</p>
+            )}
 
             {/* 好感度 */}
             <div className="mt-4 text-left">
@@ -333,19 +355,26 @@ export default function MePage() {
             )}
           </div>
 
-          <h3 className="font-bold">選擇夥伴</h3>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {PETS.map((p) => {
-              const active = profile.pet === p.key;
-              return (
-                <button key={p.key} onClick={() => choosePet(p.key)}
-                  className={`rounded-2xl p-4 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
-                  <div className="text-3xl">{p.stages[petStage(lv.level)]}</div>
-                  <p className="mt-1 text-sm font-semibold">{p.name}</p>
-                  {active && <span className="text-xs accent-text">使用中</span>}
-                </button>
-              );
-            })}
+          <div>
+            <h3 className="font-bold">選擇夥伴(換夥伴會沿用目前等級與好感度)</h3>
+            {(["經典", "寶可夢", "皮克敏"] as const).map((origin) => (
+              <div key={origin} className="mt-2">
+                <p className="mb-1 text-xs font-semibold text-slate-400">{origin}</p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {PETS.filter((p) => p.origin === origin).map((p) => {
+                    const active = profile.pet === p.key;
+                    return (
+                      <button key={p.key} onClick={() => choosePet(p.key)}
+                        className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
+                        <div className="text-3xl">{p.stages[stage]}</div>
+                        <p className="mt-1 text-xs font-semibold">{p.name}</p>
+                        {active && <span className="text-[10px] accent-text">使用中</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
