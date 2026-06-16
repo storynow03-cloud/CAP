@@ -123,7 +123,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
   - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…需 buff 表 + 觸發器/Quiz 整合)。
   - ✅ **Phase 2a 夥伴擴充 + 進化重做完成**(2026-06-16):PETS 從 4→14 隻(經典4/寶可夢風5/皮克敏風5,emoji 致敬);進化改吃「等級+好感度」雙條件(STAGE_REQ:Lv3→Lv7+好感50→Lv15+好感200),petStage/petEmoji 加 affection 參數;完全體有華麗光環/漂浮/閃光(globals.css);/me 夥伴頁顯示進化條件提示、夥伴按 origin 分組;get_friends_board 加回傳 pet_affection。
   - 🔜 **Phase 2b 心情每日照顧 + 技能加成**(夥伴心情每日衰減、做題回復、照顧 streak;做題解鎖技能給 XP/金幣加成)。
-  - 🔜 **Phase 2c 探險/遠征**(派夥伴出任務,需完成題組才能領獎)。
+  - ✅ **Phase 2c 探險/遠征完成**(2026-06-16):pet_expeditions 表 + start/claim/cancel_expedition RPC;**作答觸發器自動推進該科探險進度**(做題=探險燃料),達標可領 XP/金幣/食物/好感度;/me 夥伴頁有探險面板(選科目+3 種規模、進度條、領獎/召回)。E2E 驗證做題自動推進+領獎正確。
   - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
@@ -184,6 +184,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16(續2):**Phase 2c:夥伴探險**。migration `20260616020000_expeditions.sql`(pet_expeditions 表 + start/claim/cancel_expedition RPC + on_attempt_gamify 加推進探險,已套用)。/me 夥伴頁加探險面板。E2E:start→插入 10 題作答→觸發器自動推進到 done→claim 發獎,全正確。**下一步:Phase 2b 心情/技能 → Phase 1b 加成道具。**
 - 2026-06-16(續):**Phase 2a:夥伴擴充 + 進化重做**。migration `20260616010000_pets_evolution.sql`(get_friends_board 加 pet_affection,已套用)。gamify.ts:PETS 4→14 隻(經典/寶可夢風/皮克敏風)、進化改「等級+好感度」雙條件(STAGE_REQ)、petStage/petEmoji 加 affection 參數、nextStageReq;globals.css 加完全體華麗光環動畫;/me 夥伴頁:華麗 showcase + 進化條件提示 + 夥伴 origin 分組;friends/Quiz 帶入 affection。build 通過。**下一步:Phase 2b 心情/技能 → 2c 探險。**
 - 2026-06-16:**遊戲化擴充 Phase 1a:商店獨立模組 + 商城專業化**。migration `20260616000000_shop_pro.sql`(rarity 欄、名牌底圖/稱號商品、equipped_nameplate/title、get_shop/buy_item/shop_featured_keys RPC,已套用)。前端:Nav 加「商店」分類;`/shop`(ShopPanel+MarketPanel 雙分頁);ShopPanel 有每日精選 7 折、稀有度光效、轉蛋、theme/frame/nameplate/title 裝備;`/me` 拔掉商城分頁改連 /shop 並在個人卡套名牌底圖+稱號;dashboard 顯示稱號。build 通過,get_shop/buy_item 已 E2E。**下一步:Phase 1b 加成道具 → Phase 2 夥伴大改。**
 - 2026-06-15(續二):**#四 玩家交易所完成**(經濟系統三項全收工)。新 migration `20260615020000_market.sql`(market_listings + create_listing/cancel_listing/buy_listing/get_market,security definer 原子交易、託管制,已套用)。新頁 `/market`(上架自己的裝扮、下架、逛市集購買),入口加在「對戰」hub。build 通過。

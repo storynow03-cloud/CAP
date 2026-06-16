@@ -2,11 +2,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
   nextStageReq, FINAL_STAGE, type AchStats, type ShopItem,
 } from "@/lib/gamify";
+
+interface Expedition {
+  id: number;
+  subject: string;
+  tier: number;
+  target_count: number;
+  progress_count: number;
+  reward_xp: number;
+  reward_coins: number;
+  reward_food: string | null;
+  reward_affection: number;
+  status: string;
+}
+const EXP_TIERS = [
+  { tier: 1, label: "短程探險", target: 10, reward: "60 XP・30🪙" },
+  { tier: 2, label: "中程遠征", target: 20, reward: "140 XP・70🪙・小魚乾" },
+  { tier: 3, label: "長征冒險", target: 30, reward: "240 XP・120🪙・蛋糕" },
+];
+const subjLabel = (k: string) => SUBJECTS.find((s) => s.key === k)?.label ?? k;
 
 interface Profile {
   nickname: string;
@@ -26,6 +46,9 @@ export default function MePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [inventory, setInventory] = useState<Map<string, number>>(new Map());
+  const [expedition, setExpedition] = useState<Expedition | null>(null);
+  const [expSubject, setExpSubject] = useState("math");
+  const [busy, setBusy] = useState(false);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<AchStats | null>(null);
   const [tab, setTab] = useState<"achievements" | "pet">("achievements");
@@ -41,11 +64,12 @@ export default function MePage() {
     if (!u.user) return;
     const uid = u.user.id;
 
-    const [{ data: p }, { data: inv }, shop, { data: ach }, { data: mastery }, ac, an, conq, exam] =
+    const [{ data: p }, { data: inv }, shop, { data: exp }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
         supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
+        supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid).eq("is_correct", true),
@@ -90,6 +114,7 @@ export default function MePage() {
     setProfile(p as Profile);
     setShopItems(shop);
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
+    setExpedition(((exp ?? []) as Expedition[])[0] ?? null);
     setUnlocked(already);
     setStats(s);
     setLoading(false);
@@ -158,6 +183,25 @@ export default function MePage() {
     setMsg(`夥伴吃得好開心!好感度 ${aff ?? ""} ❤️`);
     load();
   }
+
+  const EXP_ERR: Record<string, string> = {
+    ALREADY_RUNNING: "已經有一個探險進行中了",
+    NOT_DONE: "探險還沒完成",
+    BAD_TIER: "探險難度錯誤",
+  };
+  async function rpcExp(fn: string, args: object, ok: string) {
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.rpc(fn, args);
+    setBusy(false);
+    if (error) { setMsg(EXP_ERR[error.message] ?? "操作失敗:" + error.message); return; }
+    setMsg(ok);
+    load();
+  }
+  const startExp = (tier: number) =>
+    rpcExp("start_expedition", { p_subject: expSubject, p_tier: tier }, `🧭 夥伴出發${subjLabel(expSubject)}探險!做題就會推進進度`);
+  const claimExp = (id: number) => rpcExp("claim_expedition", { p_id: id }, "🎁 探險獎勵已領取!");
+  const cancelExp = (id: number) => rpcExp("cancel_expedition", { p_id: id }, "已召回夥伴");
 
   if (loading || !profile || !stats)
     return <p className="py-12 text-center text-slate-500">載入中…</p>;
@@ -326,6 +370,66 @@ export default function MePage() {
                 {aff.toNext > 0 ? `再 ${aff.toNext} 好感度可提升親密度` : "已達最高親密度!✨"}
               </p>
             </div>
+          </div>
+
+          {/* 夥伴探險 */}
+          <div>
+            <h3 className="mb-2 font-bold">🧭 夥伴探險(做題推進)</h3>
+            {expedition ? (
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">
+                    {petEmoji(profile.pet, lv.level, petAff)} {subjLabel(expedition.subject)}・
+                    {EXP_TIERS[expedition.tier - 1]?.label}
+                  </p>
+                  <span className="text-xs text-slate-400">
+                    {Math.min(expedition.progress_count, expedition.target_count)}/{expedition.target_count} 題
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full accent-bg"
+                    style={{ width: `${Math.min(100, (expedition.progress_count / expedition.target_count) * 100)}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  獎勵:{expedition.reward_xp} XP・{expedition.reward_coins}🪙・好感 +{expedition.reward_affection}
+                  {expedition.reward_food && "・食物"}
+                </p>
+                {expedition.status === "done" ? (
+                  <button onClick={() => claimExp(expedition.id)} disabled={busy}
+                    className="mt-2 w-full rounded-full bg-amber-500 py-2 text-sm font-bold text-white disabled:opacity-50">
+                    🎁 探險完成!領取獎勵
+                  </button>
+                ) : (
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">去「{subjLabel(expedition.subject)}」做題推進探險吧!</span>
+                    <button onClick={() => cancelExp(expedition.id)} disabled={busy}
+                      className="rounded-full bg-slate-100 px-3 py-1 text-xs disabled:opacity-50">召回</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
+                <p className="mb-2 text-sm text-slate-500">選一個科目派夥伴出發,做題就能推進進度、完成後領大獎!</p>
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {SUBJECTS.map((s) => (
+                    <button key={s.key} onClick={() => setExpSubject(s.key)}
+                      className={`rounded-full px-3 py-1 text-sm ${expSubject === s.key ? "accent-bg text-white" : "bg-slate-100 text-slate-600"}`}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {EXP_TIERS.map((t) => (
+                    <button key={t.tier} onClick={() => startExp(t.tier)} disabled={busy}
+                      className="rounded-xl border border-slate-200 p-2 text-center hover:border-indigo-300 disabled:opacity-50">
+                      <p className="text-sm font-bold">{t.label}</p>
+                      <p className="text-xs text-slate-400">{t.target} 題</p>
+                      <p className="mt-1 text-xs accent-text">{t.reward}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 餵食 */}

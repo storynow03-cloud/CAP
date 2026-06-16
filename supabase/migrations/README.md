@@ -19,6 +19,7 @@
 | 11 | `20260615020000_market.sql` | 玩家交易所:market_listings 表 + create_listing/cancel_listing/buy_listing/get_market RPC(security definer 原子交易、託管制) |
 | 12 | `20260616000000_shop_pro.sql` | 商城專業化:shop_items.rarity、名牌底圖/稱號商品、profiles.equipped_nameplate/title、shop_featured_keys/get_shop/buy_item RPC(每日精選 7 折、server 端統一購買) |
 | 13 | `20260616010000_pets_evolution.sql` | 夥伴進化改吃等級+好感度:get_friends_board RPC 加回傳 pet_affection |
+| 14 | `20260616020000_expeditions.sql` | 夥伴探險:pet_expeditions 表 + start/claim/cancel_expedition RPC;作答觸發器 on_attempt_gamify 加推進該科探險進度 |
 
 ## 如何重建資料庫
 
@@ -32,6 +33,6 @@ supabase db push        # 會依序套用 supabase/migrations/ 內所有檔案
 ```
 
 ## 注意
-- 觸發器 `on_attempt_gamify` 在第 4 個檔建立、第 5 個檔更新(加入週 XP),屬正常演進。
+- 觸發器 `on_attempt_gamify` 在第 4 個檔建立、第 5 個檔更新(加週 XP)、第 14 個檔再更新(推進夥伴探險),屬正常演進。
 - 套用後,題庫資料用 `scripts/import-questions.mjs`(或 `rebuild-math-science.mjs`)匯入。
 - 測試帳號需另外用 Supabase Admin API 建立(見 HANDOFF.md)。
