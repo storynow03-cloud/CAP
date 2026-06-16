@@ -56,35 +56,49 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "exam_5", emoji: "🎯", label: "模考常客", desc: "完成 5 次模擬考", check: (s) => s.examCount >= 5 },
 ];
 
-// ===== 商城 =====
-export interface ShopItem {
-  key: string;
-  label: string;
-  price: number;
-  type: "theme" | "frame";
-  value: string; // theme: 主色 hex;frame: emoji 邊框
+// ===== 商城(資料庫驅動,目錄存在 shop_categories / shop_items)=====
+export type ShopItemType = "theme" | "frame" | "food";
+
+export interface ShopCategory {
+  id: number;
+  name: string;
+  type: ShopItemType | string;
+  sort: number;
 }
 
-export const SHOP_ITEMS: ShopItem[] = [
-  // 主題色(改變介面主色)
-  { key: "theme_indigo", label: "靛藍(預設)", price: 0, type: "theme", value: "#4f46e5" },
-  { key: "theme_rose", label: "玫瑰紅", price: 100, type: "theme", value: "#e11d48" },
-  { key: "theme_emerald", label: "翡翠綠", price: 100, type: "theme", value: "#059669" },
-  { key: "theme_amber", label: "琥珀橙", price: 100, type: "theme", value: "#d97706" },
-  { key: "theme_violet", label: "紫羅蘭", price: 150, type: "theme", value: "#7c3aed" },
-  { key: "theme_cyan", label: "天青藍", price: 150, type: "theme", value: "#0891b2" },
-  { key: "theme_pink", label: "櫻花粉", price: 200, type: "theme", value: "#db2777" },
-  { key: "theme_slate", label: "石墨黑", price: 200, type: "theme", value: "#334155" },
-  // 頭像框(emoji 裝飾)
-  { key: "frame_star", label: "星星框", price: 120, type: "frame", value: "⭐" },
-  { key: "frame_fire", label: "火焰框", price: 120, type: "frame", value: "🔥" },
-  { key: "frame_crown", label: "皇冠框", price: 300, type: "frame", value: "👑" },
-  { key: "frame_rainbow", label: "彩虹框", price: 300, type: "frame", value: "🌈" },
-];
+export interface ShopItem {
+  id: number;
+  category_id: number | null;
+  key: string;            // 穩定識別碼(user_items.key / equipped_* 都參照這個)
+  label: string;
+  price: number;
+  type: ShopItemType | string;
+  value: string;          // theme: 主色 hex;frame: emoji;food: 好感度點數
+  active: boolean;
+  sort: number;
+}
+
+/** 最小化的 supabase client 介面(server / browser 兩種 client 都符合)*/
+type ShopQueryable = {
+  from: (table: string) => {
+    select: (cols: string) => {
+      order: (col: string) => PromiseLike<{ data: ShopItem[] | null }>;
+    };
+  };
+};
+
+/** 讀取商城商品(含 inactive,讓「使用中/已擁有」的舊商品仍能解析名稱/數值)。
+ *  前端商城列表自行用 active 過濾。 */
+export async function fetchShopItems(supabase: ShopQueryable): Promise<ShopItem[]> {
+  const { data } = await supabase.from("shop_items").select("*").order("sort");
+  return data ?? [];
+}
 
 export const DEFAULT_THEME = "#4f46e5";
-export const itemByKey = (key: string | null | undefined) =>
-  SHOP_ITEMS.find((i) => i.key === key);
+export const itemByKey = (
+  items: ShopItem[],
+  key: string | null | undefined,
+) => items.find((i) => i.key === key);
 
 // ===== 學習夥伴(寵物,隨等級進化)=====
 export interface PetDef {
@@ -109,6 +123,43 @@ export const STAGE_NAMES = ["蛋", "幼年", "成長期", "完全體"];
 export function petEmoji(petKey: string | null | undefined, level: number): string {
   const p = PETS.find((x) => x.key === petKey) ?? PETS[0];
   return p.stages[petStage(level)];
+}
+
+// ===== 寵物好感度(餵食累積)=====
+// 親密度分 5 級(0~4),門檻為「累積好感度」。
+export const AFFECTION_TIERS = [0, 50, 150, 300, 500];
+export const MAX_AFFECTION_LEVEL = AFFECTION_TIERS.length - 1;
+/** 由累積好感度算出親密度等級(0~4)*/
+export function petAffectionLevel(affection: number): number {
+  let lv = 0;
+  for (let i = 1; i < AFFECTION_TIERS.length; i++) if (affection >= AFFECTION_TIERS[i]) lv = i;
+  return lv;
+}
+/** 回傳目前級內進度(供愛心條使用)*/
+export function affectionProgress(affection: number): { level: number; into: number; span: number; toNext: number } {
+  const level = petAffectionLevel(affection);
+  if (level >= MAX_AFFECTION_LEVEL)
+    return { level, into: 1, span: 1, toNext: 0 };
+  const base = AFFECTION_TIERS[level];
+  const span = AFFECTION_TIERS[level + 1] - base;
+  return { level, into: affection - base, span, toNext: AFFECTION_TIERS[level + 1] - affection };
+}
+export const AFFECTION_NAMES = ["陌生", "熟悉", "親近", "信賴", "形影不離"];
+
+// 作答時寵物打氣台詞(親密度越高越熱情)
+const CHEER = {
+  correctHigh: ["太棒了!我就知道你最厲害 💛", "答對啦!跟你一起變強好開心!", "完美!我們是最佳拍檔 ✨", "厲害!你越來越強了呢!"],
+  correctLow: ["答對了,做得好!👍", "不錯喔,繼續加油!", "答對啦!", "很好,保持下去!"],
+  wrongHigh: ["沒關係,我永遠相信你 💪", "再試一次,我會一直陪著你!", "別灰心,下一題一定行 💛", "失敗是變強的開始,加油!"],
+  wrongLow: ["沒關係,再接再厲!", "別氣餒,看一下詳解吧!", "下一題加油!", "錯了沒關係,記起來就好!"],
+};
+/** 依好感度與答對與否,隨機回一句打氣台詞 */
+export function petCheer(affection: number, correct: boolean): string {
+  const intimate = petAffectionLevel(affection) >= 2;
+  const pool = correct
+    ? intimate ? CHEER.correctHigh : CHEER.correctLow
+    : intimate ? CHEER.wrongHigh : CHEER.wrongLow;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 // ===== 王關(每週輪替)=====

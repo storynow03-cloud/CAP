@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { LEVEL_NAMES, SUBJECTS } from "@/lib/types";
-import { levelFromXp, itemByKey, type QuestRow } from "@/lib/gamify";
+import { levelFromXp, type QuestRow } from "@/lib/gamify";
 import Link from "next/link";
 
 export default async function Dashboard() {
@@ -33,7 +33,15 @@ export default async function Dashboard() {
   const xp = profile?.xp ?? 0;
   const coins = profile?.coins ?? 0;
   const lv = levelFromXp(xp);
-  const frame = itemByKey(profile?.equipped_frame);
+  let frameValue: string | null = null;
+  if (profile?.equipped_frame) {
+    const { data: fi } = await supabase
+      .from("shop_items")
+      .select("value")
+      .eq("key", profile.equipped_frame)
+      .maybeSingle();
+    frameValue = fi?.value ?? null;
+  }
   // 預設任務(今天還沒作答時顯示 0 進度)
   const questDefs = [
     { key: "answer", label: "今日完成 15 題", target: 15 },
@@ -94,7 +102,7 @@ export default async function Dashboard() {
                 {lv.level}
               </div>
             )}
-            {frame && <span className="absolute -right-1 -top-1 text-sm">{frame.value}</span>}
+            {frameValue && <span className="absolute -right-1 -top-1 text-sm">{frameValue}</span>}
           </div>
           <div className="min-w-0">
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">

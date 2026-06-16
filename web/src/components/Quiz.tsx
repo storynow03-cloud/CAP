@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordAnswer } from "@/lib/engine";
 import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
+import { levelFromXp, petEmoji, petCheer } from "@/lib/gamify";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -32,6 +33,8 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const [streak, setStreak] = useState(0); // 正為連對,負為連錯
   const [toast, setToast] = useState("");
   const [finished, setFinished] = useState(false);
+  const [pet, setPet] = useState<{ key: string; level: number; affection: number } | null>(null);
+  const [cheer, setCheer] = useState("");
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
   const supabase = createClient();
@@ -41,6 +44,21 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   useEffect(() => {
     startRef.current = Date.now();
   }, [idx]);
+
+  // 載入夥伴(考試模式不打擾)
+  useEffect(() => {
+    if (mode === "exam") return;
+    supabase
+      .from("profiles")
+      .select("pet,xp,pet_affection")
+      .eq("id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data)
+          setPet({ key: data.pet, level: levelFromXp(data.xp ?? 0).level, affection: data.pet_affection ?? 0 });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!q || finished) {
     return (
@@ -77,6 +95,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
     if (isCorrect) setCorrectCount((c) => c + 1);
     const newStreak = isCorrect ? Math.max(1, streak + 1) : Math.min(-1, streak - 1);
     setStreak(newStreak);
+    if (pet) setCheer(petCheer(pet.affection, isCorrect));
 
     const effectiveMode = reviewIds?.has(q.id) ? "review" : mode;
     const res = await recordAnswer(
@@ -117,6 +136,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
 
   function next() {
     setToast("");
+    setCheer("");
     setSelected(null);
     setRevealed(false);
     if (idx + 1 >= queue.length) setFinished(true);
@@ -189,6 +209,13 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
           </div>
         )}
       </div>
+
+      {revealed && pet && cheer && (
+        <div className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+          <span className="shrink-0 text-3xl">{petEmoji(pet.key, pet.level)}</span>
+          <p className="text-sm font-medium text-slate-700">{cheer}</p>
+        </div>
+      )}
 
       {toast && (
         <div className="rounded-xl bg-indigo-600 p-3 text-center font-semibold text-white">{toast}</div>

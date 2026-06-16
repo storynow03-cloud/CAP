@@ -12,6 +12,11 @@
 | 4 | `20260614010526_gamification.sql` | 遊戲化 Phase A:XP/金幣欄位、daily_quests, user_achievements, user_items + 作答觸發器 `on_attempt_gamify` |
 | 5 | `20260614030934_gamification_phase_bc.sql` | Phase B/C:寵物、週 XP、friendships, duels, boss_clears + add_friend/get_friends_board RPC(並更新觸發器加週 XP) |
 | 6 | `20260614031320_create_duel_rpc.sql` | PK 對戰 RPC:create_duel, get_duel, my_duels |
+| 7 | `20260614060000_profile_avatar.sql` | profiles 加 avatar_url + avatars storage bucket |
+| 8 | `20260614120000_self_assessment.sql` | self_assessment 表 + get_chapter_overview RPC(自評 vs 系統掌握度) |
+| 9 | `20260615000000_shop_db.sql` | 商城資料庫化:shop_categories, shop_items(取代寫死的 SHOP_ITEMS)+ seed + staff-only 寫入 RLS |
+| 10 | `20260615010000_pet_feeding.sql` | 寵物餵食:profiles.pet_affection/pet_fed_at、inventory 表(消耗品)、buy_food/feed_pet RPC(原子交易) |
+| 11 | `20260615020000_market.sql` | 玩家交易所:market_listings 表 + create_listing/cancel_listing/buy_listing/get_market RPC(security definer 原子交易、託管制) |
 
 ## 如何重建資料庫
 

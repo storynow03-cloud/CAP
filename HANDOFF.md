@@ -114,6 +114,9 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 - ✅ 遊戲化 A/B/C 全做完(見 7.5)。
 - ✅ 導覽列分類(首頁/練習/對戰/歷程/我的)、個人頁改暱稱+上傳頭像。
 - 🔜 **遊戲化經濟系統(三項):見 9.5**。順序 #三 商城DB化 → #二 寵物餵食 → #四 交易所。
+  - ✅ **#三 商城 DB 化完成**(2026-06-15):shop_categories/shop_items 表 + seed(8 主題/4 框/3 食物)、`/me` 商城改讀 DB、`/admin/shop` 管理 CRUD、`/api/admin/shop` 後端(requireStaff)。`itemByKey` 改吃商品陣列;layout/page/friends 改用 DB 解析主題色/頭框。
+  - ✅ **#二 寵物餵食完成**(2026-06-15):profiles.pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet 原子 RPC(防作弊);`/me` 夥伴分頁有好感度條(5 級親密度)+ 買/餵食物;Quiz.tsx 作答時夥伴打氣(台詞依好感度變親密,考試模式不打擾)。
+  - ✅ **#四 玩家交易所完成**(2026-06-15):market_listings 表 + create_listing/cancel_listing/buy_listing/get_market 原子 RPC(託管制:上架即從 user_items 移出並卸下裝備,防一物多賣;購買檢查金幣/非自己/未擁有);`/market` 頁(上架/下架/購買),入口在「對戰」hub。**經濟系統三項全完成。**
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
 - ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
@@ -173,6 +176,9 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-15(續二):**#四 玩家交易所完成**(經濟系統三項全收工)。新 migration `20260615020000_market.sql`(market_listings + create_listing/cancel_listing/buy_listing/get_market,security definer 原子交易、託管制,已套用)。新頁 `/market`(上架自己的裝扮、下架、逛市集購買),入口加在「對戰」hub。build 通過。
+- 2026-06-15(續):**#二 寵物餵食完成**。新 migration `20260615010000_pet_feeding.sql`(profiles 加 pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet security-definer 原子 RPC,已套用)。gamify.ts 加好感度親密度(5 級)+ 打氣台詞;Quiz.tsx 作答顯示夥伴打氣(考試模式不顯示);`/me` 夥伴分頁加好感度條 + 食物買/餵 UI。build 通過;RPC 已用 student 帳號 E2E 驗證(買扣金幣、餵加好感、NO_FOOD/NOT_FOOD/NOT_ENOUGH_COINS 防呆皆正確)。**下一步:9.5 #四 玩家交易所。**
+- 2026-06-15:**遊戲化經濟系統 #三 商城 DB 化完成**。新 migration `20260615000000_shop_db.sql`(shop_categories/shop_items + seed + staff-only RLS,已套用至 Supabase);商城目錄從 `gamify.ts` 寫死改為 DB 驅動(`fetchShopItems`/`itemByKey(items,key)`);`/me` 商城讀 DB;新增 `/admin/shop` 管理頁 + `/api/admin/shop` 後端 CRUD;layout/首頁/好友改 DB 解析主題色與頭框。build 通過、RLS 讀寫已驗證。
 - 2026-06-14 傍晚:家人帳號 rita/yufei(密碼 88888888);帳號管理 CRUD 模組(/admin + /api/admin/users,管理者才見,入口在「我的」頁);章節掌握度總檢查(/chapters,self_assessment 表 + get_chapter_overview RPC,自評vs系統評)。**下一步見「9.5 下一個工作」。**
 - 2026-06-14 下午:題庫轉換全完成並匯入(數學 8,597/自然 8,873 可用,22,319 張圖);導覽列整併成 5 大類+練習/對戰 hub;個人頁可改暱稱+上傳頭像(avatars bucket);改用正式版伺服器供家人測試;補上 DB migration 版控。
 

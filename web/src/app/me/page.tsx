@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ACHIEVEMENTS, SHOP_ITEMS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
-  itemByKey, type AchStats,
+  ACHIEVEMENTS, PETS, levelFromXp, petEmoji, petStage, STAGE_NAMES,
+  itemByKey, fetchShopItems, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
+  type AchStats, type ShopItem,
 } from "@/lib/gamify";
 
 interface Profile {
@@ -14,6 +15,7 @@ interface Profile {
   equipped_theme: string | null;
   equipped_frame: string | null;
   pet: string;
+  pet_affection: number;
   avatar_url: string | null;
   role: string;
 }
@@ -21,6 +23,8 @@ interface Profile {
 export default function MePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [inventory, setInventory] = useState<Map<string, number>>(new Map());
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<AchStats | null>(null);
   const [tab, setTab] = useState<"achievements" | "shop" | "pet">("achievements");
@@ -36,10 +40,12 @@ export default function MePage() {
     if (!u.user) return;
     const uid = u.user.id;
 
-    const [{ data: p }, { data: items }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
+    const [{ data: p }, { data: items }, { data: inv }, shop, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,avatar_url,role").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,pet,pet_affection,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("user_items").select("key").eq("user_id", uid),
+        supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
+        fetchShopItems(supabase),
         supabase.from("user_achievements").select("key").eq("user_id", uid),
         supabase.from("mastery").select("level"),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid).eq("is_correct", true),
@@ -82,6 +88,8 @@ export default function MePage() {
     }
 
     setProfile(p as Profile);
+    setShopItems(shop);
+    setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setOwned(new Set((items ?? []).map((i) => i.key)));
     setUnlocked(already);
     setStats(s);
@@ -153,6 +161,28 @@ export default function MePage() {
     load();
   }
 
+  const FOOD_ERR: Record<string, string> = {
+    NOT_ENOUGH_COINS: "金幣不足 🪙",
+    NO_FOOD: "沒有這個食物了,先去買吧!",
+  };
+
+  async function buyFood(key: string) {
+    const supabase = createClient();
+    const { error } = await supabase.rpc("buy_food", { p_key: key });
+    if (error) { setMsg(FOOD_ERR[error.message] ?? "購買失敗:" + error.message); return; }
+    setMsg("購買成功!到下方點「餵食」給夥伴吃 🍪");
+    load();
+  }
+
+  async function feed(key: string) {
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("feed_pet", { p_key: key });
+    if (error) { setMsg(FOOD_ERR[error.message] ?? "餵食失敗:" + error.message); return; }
+    const aff = Array.isArray(data) ? data[0]?.affection : data?.affection;
+    setMsg(`夥伴吃得好開心!好感度 ${aff ?? ""} ❤️`);
+    load();
+  }
+
   // 轉蛋:花 80 金幣抽一個還沒擁有的裝扮
   async function gacha() {
     if (!profile) return;
@@ -161,7 +191,9 @@ export default function MePage() {
       setMsg("金幣不足 🪙(轉蛋要 80)");
       return;
     }
-    const pool = SHOP_ITEMS.filter((i) => i.price > 0 && !owned.has(i.key));
+    const pool = shopItems.filter(
+      (i) => i.active && i.price > 0 && (i.type === "theme" || i.type === "frame") && !owned.has(i.key),
+    );
     const supabase = createClient();
     const { data: u } = await supabase.auth.getUser();
     if (pool.length === 0) {
@@ -182,7 +214,9 @@ export default function MePage() {
     return <p className="py-12 text-center text-slate-500">載入中…</p>;
 
   const lv = levelFromXp(profile.xp);
-  const frame = itemByKey(profile.equipped_frame);
+  const frame = itemByKey(shopItems, profile.equipped_frame);
+  const aff = affectionProgress(profile.pet_affection ?? 0);
+  const foods = shopItems.filter((i) => i.type === "food" && i.active);
 
   return (
     <div className="space-y-5">
@@ -293,14 +327,59 @@ export default function MePage() {
       ) : tab === "pet" ? (
         <div className="space-y-4">
           <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
-            <div className="text-6xl">{petEmoji(profile.pet, lv.level)}</div>
+            <div className="text-6xl">{petEmoji(profile.pet, lv.level)}{aff.level >= MAX_AFFECTION_LEVEL && " ✨"}</div>
             <p className="mt-2 font-bold">
               {PETS.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[petStage(lv.level)]}
             </p>
             <p className="text-xs text-slate-500">
               夥伴會隨你的等級進化:Lv3 幼年 → Lv7 成長期 → Lv15 完全體。多做題讓牠長大!
             </p>
+
+            {/* 好感度 */}
+            <div className="mt-4 text-left">
+              <div className="mb-1 flex items-center justify-between text-sm">
+                <span className="font-semibold">
+                  {"❤️".repeat(aff.level)}{"🤍".repeat(MAX_AFFECTION_LEVEL - aff.level)}
+                  <span className="ml-2 text-slate-500">{AFFECTION_NAMES[aff.level]}</span>
+                </span>
+                <span className="text-xs text-slate-400">好感度 {profile.pet_affection ?? 0}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-rose-400" style={{ width: `${(aff.into / aff.span) * 100}%` }} />
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                {aff.toNext > 0 ? `再 ${aff.toNext} 好感度可提升親密度` : "已達最高親密度!✨"}
+              </p>
+            </div>
           </div>
+
+          {/* 餵食 */}
+          <div>
+            <h3 className="mb-2 font-bold">🍽️ 餵食(提升好感度)</h3>
+            {foods.length === 0 ? (
+              <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-400 shadow-sm">目前沒有食物商品</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {foods.map((f) => {
+                  const qty = inventory.get(f.key) ?? 0;
+                  return (
+                    <div key={f.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                      <div className="text-3xl">{f.key.includes("cookie") ? "🍪" : f.key.includes("fish") ? "🐟" : f.key.includes("cake") ? "🍰" : "🍖"}</div>
+                      <p className="mt-1 text-sm font-semibold">{f.label}</p>
+                      <p className="text-xs text-slate-400">好感 +{f.value}|擁有 {qty}</p>
+                      <div className="mt-2 flex gap-1">
+                        <button onClick={() => buyFood(f.key)}
+                          className="flex-1 rounded-full bg-amber-500 px-2 py-1 text-xs text-white">🪙 {f.price}</button>
+                        <button onClick={() => feed(f.key)} disabled={qty <= 0}
+                          className="flex-1 rounded-full accent-bg px-2 py-1 text-xs text-white disabled:opacity-40">餵食</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <h3 className="font-bold">選擇夥伴</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {PETS.map((p) => {
@@ -332,7 +411,7 @@ export default function MePage() {
             <div key={type}>
               <h3 className="mb-2 font-bold">{type === "theme" ? "🎨 主題色" : "🖼️ 頭像框"}</h3>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {SHOP_ITEMS.filter((i) => i.type === type).map((item) => {
+                {shopItems.filter((i) => i.type === type && i.active).map((item) => {
                   const have = owned.has(item.key) || item.price === 0;
                   const equipped =
                     (type === "theme" ? profile.equipped_theme : profile.equipped_frame) === item.key;

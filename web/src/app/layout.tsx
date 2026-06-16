@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_THEME, darken, itemByKey } from "@/lib/gamify";
+import { DEFAULT_THEME, darken } from "@/lib/gamify";
 
 export const metadata: Metadata = {
   title: "會考衝刺站",
@@ -25,8 +25,14 @@ export default async function RootLayout({
         .select("equipped_theme")
         .eq("id", user.id)
         .maybeSingle();
-      const themed = itemByKey(data?.equipped_theme);
-      if (themed?.type === "theme") accent = themed.value;
+      if (data?.equipped_theme) {
+        const { data: item } = await supabase
+          .from("shop_items")
+          .select("value,type")
+          .eq("key", data.equipped_theme)
+          .maybeSingle();
+        if (item?.type === "theme") accent = item.value;
+      }
     }
   } catch {
     // 未登入或讀取失敗 → 用預設色

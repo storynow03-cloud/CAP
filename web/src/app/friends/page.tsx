@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { levelFromXp, petEmoji, itemByKey } from "@/lib/gamify";
+import { levelFromXp, petEmoji } from "@/lib/gamify";
 import { SUBJECTS } from "@/lib/types";
 
 interface BoardRow {
@@ -19,6 +19,7 @@ interface BoardRow {
 export default function FriendsPage() {
   const router = useRouter();
   const [board, setBoard] = useState<BoardRow[]>([]);
+  const [frameMap, setFrameMap] = useState<Map<string, string>>(new Map());
   const [myCode, setMyCode] = useState("");
   const [codeInput, setCodeInput] = useState("");
   const [msg, setMsg] = useState("");
@@ -27,9 +28,13 @@ export default function FriendsPage() {
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase.rpc("get_friends_board");
+    const [{ data }, { data: frames }] = await Promise.all([
+      supabase.rpc("get_friends_board"),
+      supabase.from("shop_items").select("key,value").eq("type", "frame"),
+    ]);
     const rows = (data as BoardRow[]) ?? [];
     setBoard(rows);
+    setFrameMap(new Map((frames ?? []).map((f: { key: string; value: string }) => [f.key, f.value])));
     setMyCode(rows.find((r) => r.is_me)?.friend_code ?? "");
     setLoading(false);
   }, []);
@@ -101,7 +106,7 @@ export default function FriendsPage() {
         <div className="space-y-2">
           {board.map((r, i) => {
             const lv = levelFromXp(r.xp);
-            const frame = itemByKey(r.frame);
+            const frameValue = r.frame ? frameMap.get(r.frame) : undefined;
             return (
               <div key={r.friend_code}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2 ${r.is_me ? "bg-indigo-50" : ""}`}>
@@ -111,7 +116,7 @@ export default function FriendsPage() {
                 <span className="text-xl">{petEmoji(r.pet, lv.level)}</span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
-                    {r.nickname}{r.is_me && "(我)"} {frame?.value ?? ""}
+                    {r.nickname}{r.is_me && "(我)"} {frameValue ?? ""}
                   </p>
                   <p className="text-xs text-slate-400">Lv{lv.level}</p>
                 </div>
