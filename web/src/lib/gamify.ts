@@ -147,10 +147,11 @@ export interface PetDef {
   owner?: string | null;
   active?: boolean;
   sort?: number;
-  is_legendary?: boolean;
+  is_legendary?: boolean;   // 僅決定「華麗特效」外觀
   bonus_xp?: number;        // 作答 XP +%
   bonus_coins?: number;     // 作答金幣 +%
   bonus_affection?: number; // 每答對 +好感度
+  bonus_subjects?: string[];// 加成生效的考科(空=全科)
 }
 
 /** 讀取夥伴目錄(RLS:公開夥伴 + 自己的自訂夥伴)*/
@@ -169,10 +170,6 @@ export function petStageValue(def: PetDef | undefined, stage: number): string {
   return stage <= 0 ? def.stage1 : stage === 1 ? def.stage2 : def.stage3;
 }
 
-// 自訂夥伴:pet === CUSTOM_PET 時改用 pet_image_url 的圖片(玩家上傳自己的圖)
-export const CUSTOM_PET = "custom";
-// 內建範例自訂圖(皇小米/英語老師已改為傳說夥伴 pet_defs,這裡留空)
-export const CUSTOM_PETS: { key: string; name: string; url: string }[] = [];
 
 // 進化條件:3 階段(幼年→成長期→完全體),每階段需「等級 + 好感度」雙達標(讀書 + 照顧)
 export const STAGE_REQ: { level: number; affection: number }[] = [
@@ -232,12 +229,6 @@ export function petMood(daysSinceCare: number) {
   return { ...PET_MOODS[i], level: i };
 }
 
-// 夥伴技能(依好感度解鎖,作答時於 server 端自動加成 —— 與 on_attempt_gamify 一致)
-export const PET_SKILLS = [
-  { key: "lucky",    emoji: "🍀", name: "幸運", affection: 80,  desc: "作答金幣 +20%" },
-  { key: "diligent", emoji: "⚡", name: "勤奮", affection: 200, desc: "作答 XP +10%" },
-  { key: "tough",    emoji: "🛡️", name: "堅毅", affection: 400, desc: "作答 XP 再 +5%" },
-];
 
 // 作答時寵物打氣台詞(親密度越高越熱情)
 const CHEER = {

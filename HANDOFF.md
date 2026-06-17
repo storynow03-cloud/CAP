@@ -133,7 +133,13 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
   - ✅ **傳說特效夥伴完成**(2026-06-16):pet_defs 加 is_legendary + bonus_xp/coins/affection(管理者於 /admin/pets 設定);新增 user_pets 表 + buy_pet RPC(夥伴可購買、免費=直接可用);**作答觸發器套用傳說加成**(XP%/金幣%/每答對好感度);Quiz 作答對傳說夥伴有光環/閃光特效;/me「選擇夥伴」自訂下方加「✨傳說夥伴」區(購買/裝備);皇小米、英語老師 seed 為 2000 元傳說夥伴。E2E:買扣 2000、ALREADY_OWNED、傳說 XP+10%(19→20)、+好感皆正確。
   - ✅ **Phase 3d 管理者交易所 moderation 完成**(2026-06-16):admin_get_market / admin_remove_listing RPC(staff-only,強制下架退回賣家);UI 在 /admin/shop 底部「玩家交易所」區。
   - ✅ **Phase 3e 進化圖鑑完成**(2026-06-16):/me 夥伴頁「📖 進化圖鑑」顯示當前夥伴 3 階段(幼年/成長期/完全體)外觀,未解鎖灰階+顯示條件,完全體/傳說有光環特效(PetView 加 forceStage)。
-  - 🔜 **仍待做:Phase 3e 自創夥伴上架交易所**(玩家把自己上傳的自訂夥伴拿去交易,需擴充 market 模型支援 pet 類型)、**1b 加成道具**(XP 卡/提示券)。
+  - ✅ **加成統一 + 多項調整完成**(2026-06-16):
+    - **加成單一來源**:移除寫死的好感度技能(原本 gamify PET_SKILLS + 觸發器各一份),全部改吃 pet_defs 每隻夥伴的 bonus_xp/coins/affection;新增 bonus_subjects(考科限定,空=全科)。觸發器/管理頁/個人頁讀同一份。
+    - **管理頁加考科複選**(/admin/pets BonusFields);加成對任何夥伴生效,is_legendary 只決定華麗特效。
+    - **非經典夥伴皆付費**:寶可夢 500;新增瑪莉歐×5、柯南×5(500,emoji 佔位,**待管理者於 /admin/pets 換上傳圖**)。
+    - **移除自訂上傳夥伴**(pet=custom 玩家改回 cat;pet_image_url 欄位停用)。
+    - **傳說進化圖鑑特效隨階段升級**。E2E:科目限定加成(數學+100%、國文 0)、舊技能已移除皆正確。
+  - 🔜 **仍待做:Phase 3e 自創夥伴上架交易所**(自訂上傳已移除,此項待重新定義)、**1b 加成道具**。
   - 🔜 **Phase 3d 管理者交易所 CRUD**:可下架/刪除玩家 listing(moderation)。
   - 🔜 **Phase 3e 自創夥伴上架交易所 + 進化圖/特效展示**。
 - ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
@@ -195,6 +201,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-06-16(續9):**加成統一(資料單一來源)+ 多項調整**。migration `20260616090000_pet_bonus_unify.sql`(已套用)。移除寫死好感度技能、改吃 pet_defs 每隻加成 + bonus_subjects 考科限定;/admin/pets 加考科複選、加成適用任何夥伴;寶可夢 500、新增瑪莉歐/柯南各 5(500,emoji 佔位待換圖);移除自訂上傳;傳說進化圖鑑特效分階升級。build 通過;科目限定加成 + 技能移除 E2E 全綠。
 - 2026-06-16(續8):**Phase 3d 交易所 moderation + 3e 進化圖鑑**。migration `20260616080000_admin_market.sql`(admin_get_market/admin_remove_listing,已套用)。/admin/shop 加玩家交易所強制下架;/me 加進化圖鑑(PetView forceStage)。build 通過;moderation staff-only 已 E2E。
 - 2026-06-16(續7):**傳說特效夥伴**。migration `20260616070000_legendary_pets.sql`(pet_defs 加 is_legendary/bonus 欄、user_pets 表、buy_pet RPC、觸發器套用傳說加成、seed 皇小米+英語老師 2000,已套用)。gamify PetDef 加欄位、CUSTOM_PETS 清空(皇小米改 pet_def);/me 加「傳說夥伴」購買區 + 特效;Quiz 傳說特效;/admin/pets 可設傳說與加成。E2E 全綠。
 - 2026-06-16(續6):**Phase 3c:管理者夥伴 CRUD**(見上)。

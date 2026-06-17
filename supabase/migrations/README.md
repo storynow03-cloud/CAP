@@ -26,6 +26,7 @@
 | 18 | `20260616060000_pet_images_bucket.sql` | 夥伴圖片儲存空間:pet-images bucket(公開讀、staff 寫),供管理者上傳夥伴階段圖 |
 | 19 | `20260616070000_legendary_pets.sql` | 傳說特效夥伴:pet_defs 加 is_legendary/bonus_xp/bonus_coins/bonus_affection、user_pets 表 + buy_pet RPC、作答觸發器套用傳說加成;seed 皇小米/英語老師(2000) |
 | 20 | `20260616080000_admin_market.sql` | 管理者交易所 moderation:admin_get_market / admin_remove_listing RPC(staff-only,下架退回賣家) |
+| 21 | `20260616090000_pet_bonus_unify.sql` | 加成統一:移除寫死的好感度技能,改吃 pet_defs 每隻加成(單一來源)+ bonus_subjects 考科限定;寶可夢設 500、新增瑪莉歐/柯南各 5(500);停用自訂上傳(pet=custom→cat) |
 
 ## 如何重建資料庫
 
@@ -39,6 +40,6 @@ supabase db push        # 會依序套用 supabase/migrations/ 內所有檔案
 ```
 
 ## 注意
-- 觸發器 `on_attempt_gamify` 在第 4 檔建立、第 5(週 XP)、第 14(探險)、第 15(技能加成)、第 19(傳說夥伴加成)檔逐步更新,屬正常演進。
+- 觸發器 `on_attempt_gamify` 在第 4 檔建立,後續第 5(週 XP)、14(探險)、15、19、**21(統一改吃 pet_defs 每隻加成、考科限定;移除寫死好感度技能)** 逐步更新。第 21 檔為「加成單一來源」的最終版。
 - 套用後,題庫資料用 `scripts/import-questions.mjs`(或 `rebuild-math-science.mjs`)匯入。
 - 測試帳號需另外用 Supabase Admin API 建立(見 HANDOFF.md)。

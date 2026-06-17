@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
 
 const FIELDS = ["key", "name", "origin", "kind", "stage1", "stage2", "stage3", "rarity", "sort", "active",
-  "price", "is_legendary", "bonus_xp", "bonus_coins", "bonus_affection"];
+  "price", "is_legendary", "bonus_xp", "bonus_coins", "bonus_affection", "bonus_subjects"];
 const NUM_FIELDS = new Set(["sort", "price", "bonus_xp", "bonus_coins", "bonus_affection"]);
 
 // 讀取所有夥伴(含 inactive,管理頁要看到全部;只回非自訂的公開夥伴)

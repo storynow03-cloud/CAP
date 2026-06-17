@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { SUBJECTS } from "@/lib/types";
 
 interface Pet {
   id: number;
@@ -20,6 +21,7 @@ interface Pet {
   bonus_xp: number;
   bonus_coins: number;
   bonus_affection: number;
+  bonus_subjects: string[];
 }
 
 const STAGE_LABELS = ["幼年", "成長期", "完全體"];
@@ -27,21 +29,28 @@ const emptyForm = () => ({
   key: "", name: "", origin: "自訂", kind: "emoji" as const,
   stage1: "", stage2: "", stage3: "", rarity: "common", sort: 0,
   price: 0, is_legendary: false, bonus_xp: 0, bonus_coins: 0, bonus_affection: 0,
+  bonus_subjects: [] as string[],
 });
 
-// 傳說/購買設定(新增與編輯共用)
-function LegendaryFields({ v, set }: {
-  v: { price: number; is_legendary: boolean; bonus_xp: number; bonus_coins: number; bonus_affection: number };
-  set: (patch: Partial<{ price: number; is_legendary: boolean; bonus_xp: number; bonus_coins: number; bonus_affection: number }>) => void;
-}) {
+type BonusVals = {
+  price: number; is_legendary: boolean; bonus_xp: number; bonus_coins: number;
+  bonus_affection: number; bonus_subjects: string[];
+};
+
+// 購買 + 加成設定(任何夥伴皆可設;新增與編輯共用)
+function BonusFields({ v, set }: { v: BonusVals; set: (patch: Partial<BonusVals>) => void }) {
+  function toggleSubj(k: string) {
+    const has = v.bonus_subjects.includes(k);
+    set({ bonus_subjects: has ? v.bonus_subjects.filter((s) => s !== k) : [...v.bonus_subjects, k] });
+  }
   return (
     <div className="mt-2 rounded-lg bg-slate-50 p-2">
       <label className="flex items-center gap-2 text-sm font-semibold">
         <input type="checkbox" checked={v.is_legendary} onChange={(e) => set({ is_legendary: e.target.checked })} />
-        ✨ 傳說特效夥伴(作答有特效與加成)
+        ✨ 傳說特效(作答時夥伴有華麗特效)
       </label>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <label className="text-xs text-slate-500">售價🪙
+        <label className="text-xs text-slate-500">售價🪙(0=免費)
           <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.price}
             onChange={(e) => set({ price: Number(e.target.value) })} /></label>
         <label className="text-xs text-slate-500">XP +%
@@ -53,6 +62,17 @@ function LegendaryFields({ v, set }: {
         <label className="text-xs text-slate-500">每答對好感
           <input type="number" className="mt-0.5 w-full rounded border border-slate-300 px-2 py-1" value={v.bonus_affection}
             onChange={(e) => set({ bonus_affection: Number(e.target.value) })} /></label>
+      </div>
+      <div className="mt-2">
+        <p className="text-xs text-slate-500">加成考科(不選=全科加成)</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {SUBJECTS.map((s) => (
+            <button key={s.key} type="button" onClick={() => toggleSubj(s.key)}
+              className={`rounded-full px-2 py-0.5 text-xs ${v.bonus_subjects.includes(s.key) ? "accent-bg text-white" : "bg-slate-200 text-slate-600"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -183,7 +203,7 @@ export default function AdminPetsPage() {
         <p className="mb-1 mt-3 text-sm font-semibold text-slate-500">三階段外觀</p>
         <StageInputs kind={form.kind}
           get={(k) => form[k]} set={(k, v) => setForm({ ...form, [k]: v })} />
-        <LegendaryFields v={form} set={(patch) => setForm({ ...form, ...patch })} />
+        <BonusFields v={form} set={(patch) => setForm({ ...form, ...patch })} />
         <button onClick={create} className="mt-3 w-full rounded-lg accent-bg py-2.5 font-semibold text-white">建立夥伴</button>
       </section>
 
@@ -209,7 +229,7 @@ export default function AdminPetsPage() {
                 </div>
                 <StageInputs kind={edit.kind}
                   get={(k) => edit[k]} set={(k, v) => setEdit({ ...edit, [k]: v })} />
-                <LegendaryFields v={edit} set={(patch) => setEdit({ ...edit, ...patch })} />
+                <BonusFields v={edit} set={(patch) => setEdit({ ...edit, ...patch })} />
                 <div className="flex gap-2">
                   <button onClick={saveEdit} className="rounded-lg accent-bg px-4 py-1.5 text-sm font-semibold text-white">儲存</button>
                   <button onClick={() => setEdit(null)} className="rounded-lg bg-slate-100 px-4 py-1.5 text-sm">取消</button>

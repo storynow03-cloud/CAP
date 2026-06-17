@@ -220,7 +220,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
             <span className={`pet-showcase relative grid h-11 w-11 shrink-0 place-items-center ${isLegendary ? "" : ""}`}>
               {isLegendary && <span className="pet-aura" />}
               <span className={`relative ${isLegendary ? "pet-final" : ""}`}>
-                <PetView petKey={pet.key} defs={petDefs} level={pet.level} affection={pet.affection} customUrl={pet.imageUrl} px={40} emojiClass="text-3xl" />
+                <PetView petKey={pet.key} defs={petDefs} level={pet.level} affection={pet.affection} px={40} emojiClass="text-3xl" />
               </span>
             </span>
             <p className="text-sm font-medium text-slate-700">{cheer}{isLegendary && " ✨"}</p>

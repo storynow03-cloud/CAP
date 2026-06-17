@@ -6,7 +6,7 @@ import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, levelFromXp, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, fetchPets, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  nextStageReq, FINAL_STAGE, STAGE_REQ, petMood, PET_SKILLS, CUSTOM_PET, CUSTOM_PETS,
+  nextStageReq, FINAL_STAGE, STAGE_REQ, petMood,
   type AchStats, type ShopItem, type PetDef,
 } from "@/lib/gamify";
 import PetView from "@/components/PetView";
@@ -39,7 +39,6 @@ interface Profile {
   equipped_nameplate: string | null;
   equipped_title: string | null;
   pet: string;
-  pet_image_url: string | null;
   pet_affection: number;
   pet_fed_at: string | null;
   pet_play_day: string | null;
@@ -74,7 +73,7 @@ export default function MePage() {
 
     const [{ data: p }, { data: inv }, shop, { data: exp }, petList, { data: myPets }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_image_url,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
@@ -184,36 +183,10 @@ export default function MePage() {
         : error.message === "ALREADY_OWNED" ? "你已經擁有了" : "購買失敗:" + error.message;
       setMsg(m); return;
     }
-    setMsg(`購買成功!已獲得傳說夥伴「${p.name}」✨`);
+    setMsg(`購買成功!已獲得夥伴「${p.name}」✨`);
     // 購買後直接換上
     const { data: u } = await supabase.auth.getUser();
-    await supabase.from("profiles").update({ pet: p.key, pet_image_url: null }).eq("id", u.user!.id);
-    load();
-  }
-
-  async function chooseCustom(url: string) {
-    const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    await supabase.from("profiles").update({ pet: CUSTOM_PET, pet_image_url: url }).eq("id", u.user!.id);
-    setMsg("已換上自訂夥伴!🖼️");
-    load();
-  }
-
-  async function uploadPetImage(file: File) {
-    if (!file.type.startsWith("image/")) { setMsg("請選圖片檔"); return; }
-    if (file.size > 5 * 1024 * 1024) { setMsg("圖片請小於 5MB"); return; }
-    setUploading(true);
-    const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    const uid = u.user!.id;
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${uid}/pet_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (error) { setMsg("上傳失敗:" + error.message); setUploading(false); return; }
-    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-    await supabase.from("profiles").update({ pet: CUSTOM_PET, pet_image_url: pub.publicUrl }).eq("id", uid);
-    setUploading(false);
-    setMsg("自訂夥伴已上傳並換上!🖼️");
+    await supabase.from("profiles").update({ pet: p.key }).eq("id", u.user!.id);
     load();
   }
 
@@ -333,7 +306,7 @@ export default function MePage() {
           </div>
           <div className="text-center">
             <div className={showEffect ? "pet-final" : ""}>
-              <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={40} emojiClass="text-4xl" />
+              <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} px={40} emojiClass="text-4xl" />
             </div>
             <div className="text-xs opacity-80">{STAGE_NAMES[stage]}</div>
           </div>
@@ -427,11 +400,11 @@ export default function MePage() {
                 </>
               )}
               <span className={`relative ${showEffect ? "pet-final" : ""}`}>
-                <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={72} emojiClass="text-6xl" />
+                <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} px={72} emojiClass="text-6xl" />
               </span>
             </div>
             <p className="mt-2 font-bold">
-              {profile.pet === CUSTOM_PET ? "自訂夥伴" : pets.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[stage]}
+              {pets.find((p) => p.key === profile.pet)?.name ?? "夥伴"}・{STAGE_NAMES[stage]}
               {stage >= FINAL_STAGE && <span className="ml-1 text-amber-500">完全體!</span>}
             </p>
             {nextReq ? (
@@ -487,20 +460,29 @@ export default function MePage() {
               <div className="grid grid-cols-3 gap-2">
                 {[0, 1, 2].map((s) => {
                   const unlocked = stage >= s;
+                  // 傳說夥伴:特效隨階段升級(幼年微光→成長期光環→完全體華麗);一般夥伴僅完全體華麗
+                  const ringTier = ["ring-1 ring-sky-300", "ring-2 ring-violet-300", "ring-2 ring-amber-300"][s];
                   const fancy = (s >= FINAL_STAGE || legendaryActive) && unlocked;
+                  const showAura = unlocked && (s >= FINAL_STAGE || (legendaryActive && s >= 1));
                   return (
                     <div key={s}
-                      className={`rounded-2xl p-3 text-center shadow-sm ${fancy ? "bg-gradient-to-b from-amber-50 to-violet-50" : "bg-white"}`}>
+                      className={`rounded-2xl p-3 text-center shadow-sm ${fancy ? `bg-gradient-to-b from-amber-50 to-violet-50 ${legendaryActive ? ringTier : ""}` : "bg-white"}`}>
                       <div className="pet-showcase mx-auto grid h-14 w-14 place-items-center">
-                        {fancy && <span className="pet-aura" />}
+                        {showAura && <span className="pet-aura" />}
+                        {legendaryActive && s >= FINAL_STAGE && unlocked && (
+                          <>
+                            <span className="pet-spark left-0 top-0 text-xs" style={{ animationDelay: "0s" }}>✨</span>
+                            <span className="pet-spark bottom-0 right-0 text-xs" style={{ animationDelay: ".7s" }}>⭐</span>
+                          </>
+                        )}
                         <span className={`relative ${fancy ? "pet-final" : ""} ${unlocked ? "" : "opacity-40 grayscale"}`}>
                           <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff}
-                            customUrl={profile.pet_image_url} forceStage={s} px={48} emojiClass="text-4xl" />
+                            forceStage={s} px={48} emojiClass="text-4xl" />
                         </span>
                       </div>
                       <p className="mt-1 text-xs font-bold">{STAGE_NAMES[s]}</p>
                       <p className="text-[10px] text-slate-400">
-                        {unlocked ? "已解鎖" : `Lv${STAGE_REQ[s].level}${STAGE_REQ[s].affection ? `·好感${STAGE_REQ[s].affection}` : ""}`}
+                        {unlocked ? (legendaryActive ? "✨ 特效" : "已解鎖") : `Lv${STAGE_REQ[s].level}${STAGE_REQ[s].affection ? `·好感${STAGE_REQ[s].affection}` : ""}`}
                       </p>
                     </div>
                   );
@@ -509,25 +491,6 @@ export default function MePage() {
             </div>
           )}
 
-          {/* 夥伴技能(好感度解鎖) */}
-          <div>
-            <h3 className="mb-2 font-bold">✨ 夥伴技能(好感度解鎖,做題自動加成)</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {PET_SKILLS.map((sk) => {
-                const on = petAff >= sk.affection;
-                return (
-                  <div key={sk.key}
-                    className={`rounded-2xl p-3 text-center shadow-sm ${on ? "bg-white" : "bg-slate-100 opacity-60"}`}>
-                    <div className={`text-2xl ${on ? "" : "grayscale"}`}>{on ? sk.emoji : "🔒"}</div>
-                    <p className="mt-1 text-sm font-bold">{sk.name}</p>
-                    <p className="text-[11px] text-slate-500">{sk.desc}</p>
-                    <p className="text-[10px] text-slate-400">{on ? "已啟用" : `好感度 ${sk.affection}`}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* 夥伴探險 */}
           <div>
             <h3 className="mb-2 font-bold">🧭 夥伴探險(做題推進)</h3>
@@ -535,7 +498,7 @@ export default function MePage() {
               <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="flex items-center gap-1 font-semibold">
-                    <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} customUrl={profile.pet_image_url} px={20} emojiClass="" />
+                    <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff} px={20} emojiClass="" />
                     {subjLabel(expedition.subject)}・{EXP_TIERS[expedition.tier - 1]?.label}
                   </p>
                   <span className="text-xs text-slate-400">
@@ -618,42 +581,6 @@ export default function MePage() {
           <div>
             <h3 className="font-bold">選擇夥伴(換夥伴會沿用目前等級與好感度)</h3>
 
-            {/* 自訂夥伴(上傳自己的圖) */}
-            <div className="mt-2">
-              <p className="mb-1 text-xs font-semibold text-slate-400">自訂(用你自己的圖)</p>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {CUSTOM_PETS.map((c) => {
-                  const active = profile.pet === CUSTOM_PET && profile.pet_image_url === c.url;
-                  return (
-                    <button key={c.key} onClick={() => chooseCustom(c.url)}
-                      className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={c.url} alt={c.name} className="mx-auto h-12 w-12 rounded-full object-cover" />
-                      <p className="mt-1 text-xs font-semibold">{c.name}</p>
-                      {active && <span className="text-[10px] accent-text">使用中</span>}
-                    </button>
-                  );
-                })}
-                {/* 已上傳的自訂圖(非內建) */}
-                {profile.pet === CUSTOM_PET && profile.pet_image_url &&
-                  !CUSTOM_PETS.some((c) => c.url === profile.pet_image_url) && (
-                    <div className="rounded-2xl border-2 accent-border bg-white p-3 text-center shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={profile.pet_image_url} alt="自訂" className="mx-auto h-12 w-12 rounded-full object-cover" />
-                      <p className="mt-1 text-xs font-semibold">我的圖</p>
-                      <span className="text-[10px] accent-text">使用中</span>
-                    </div>
-                  )}
-                {/* 上傳 */}
-                <label className="grid cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-slate-300 p-3 text-center hover:border-indigo-300">
-                  <span className="text-2xl">{uploading ? "⏳" : "📷"}</span>
-                  <span className="mt-1 text-xs font-semibold text-slate-500">{uploading ? "上傳中" : "上傳圖片"}</span>
-                  <input type="file" accept="image/*" className="hidden" disabled={uploading}
-                    onChange={(e) => e.target.files?.[0] && uploadPetImage(e.target.files[0])} />
-                </label>
-              </div>
-            </div>
-
             {/* 傳說特效夥伴(可購買,作答有加成與特效) */}
             {legendaryPets.length > 0 && (
               <div className="mt-3">
@@ -696,13 +623,27 @@ export default function MePage() {
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                   {pets.filter((p) => p.origin === origin && !p.is_legendary).map((p) => {
                     const active = profile.pet === p.key;
+                    const free = !p.price || p.price === 0;
+                    const owned = free || ownedPets.has(p.key);
                     return (
-                      <button key={p.key} onClick={() => choosePet(p.key)}
+                      <div key={p.key}
                         className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
                         <PetView petKey={p.key} defs={pets} level={lv.level} affection={petAff} px={32} emojiClass="text-3xl" />
                         <p className="mt-1 text-xs font-semibold">{p.name}</p>
-                        {active && <span className="text-[10px] accent-text">使用中</span>}
-                      </button>
+                        {(p.bonus_xp || p.bonus_coins || p.bonus_affection) ? (
+                          <p className="text-[10px] text-amber-600">
+                            {p.bonus_xp ? `XP+${p.bonus_xp}% ` : ""}{p.bonus_coins ? `金幣+${p.bonus_coins}% ` : ""}{p.bonus_affection ? `好感+${p.bonus_affection}` : ""}
+                          </p>
+                        ) : null}
+                        {active ? (
+                          <span className="text-[10px] accent-text">使用中</span>
+                        ) : owned ? (
+                          <button onClick={() => choosePet(p.key)} className="mt-1 rounded-full accent-bg px-3 py-0.5 text-xs text-white">裝備</button>
+                        ) : (
+                          <button onClick={() => buyPet(p)} disabled={busy}
+                            className="mt-1 rounded-full bg-amber-500 px-3 py-0.5 text-xs text-white disabled:opacity-50">🪙 {p.price}</button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
