@@ -29,6 +29,16 @@ const EXP_TIERS = [
   { tier: 3, label: "長征冒險", target: 30, reward: "240 XP・120🪙・蛋糕" },
 ];
 const subjLabel = (k: string) => SUBJECTS.find((s) => s.key === k)?.label ?? k;
+/** 夥伴加成文字(含適用科目):例「數學:XP+10% 金幣+50%」/「全科:好感+1」 */
+function bonusText(p: PetDef): string {
+  const parts: string[] = [];
+  if (p.bonus_xp) parts.push(`XP+${p.bonus_xp}%`);
+  if (p.bonus_coins) parts.push(`金幣+${p.bonus_coins}%`);
+  if (p.bonus_affection) parts.push(`好感+${p.bonus_affection}`);
+  if (!parts.length) return "";
+  const subj = p.bonus_subjects && p.bonus_subjects.length ? p.bonus_subjects.map(subjLabel).join("/") : "全科";
+  return `${subj}:${parts.join(" ")}`;
+}
 
 interface Profile {
   nickname: string;
@@ -599,9 +609,7 @@ export default function MePage() {
                           </span>
                         </div>
                         <p className="mt-1 text-xs font-bold">{p.name}</p>
-                        <p className="text-[10px] text-amber-600">
-                          {p.bonus_xp ? `XP+${p.bonus_xp}% ` : ""}{p.bonus_coins ? `金幣+${p.bonus_coins}% ` : ""}{p.bonus_affection ? `好感+${p.bonus_affection}` : ""}
-                        </p>
+                        {bonusText(p) && <p className="text-[10px] text-amber-600">{bonusText(p)}</p>}
                         {active ? (
                           <span className="text-[10px] accent-text">使用中</span>
                         ) : owned ? (
@@ -630,11 +638,7 @@ export default function MePage() {
                         className={`rounded-2xl p-3 text-center shadow-sm ${active ? "accent-border border-2 bg-white" : "bg-white"}`}>
                         <PetView petKey={p.key} defs={pets} level={lv.level} affection={petAff} px={32} emojiClass="text-3xl" />
                         <p className="mt-1 text-xs font-semibold">{p.name}</p>
-                        {(p.bonus_xp || p.bonus_coins || p.bonus_affection) ? (
-                          <p className="text-[10px] text-amber-600">
-                            {p.bonus_xp ? `XP+${p.bonus_xp}% ` : ""}{p.bonus_coins ? `金幣+${p.bonus_coins}% ` : ""}{p.bonus_affection ? `好感+${p.bonus_affection}` : ""}
-                          </p>
-                        ) : null}
+                        {bonusText(p) && <p className="text-[10px] text-amber-600">{bonusText(p)}</p>}
                         {active ? (
                           <span className="text-[10px] accent-text">使用中</span>
                         ) : owned ? (
