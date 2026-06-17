@@ -25,6 +25,7 @@
 | 17 | `20260616050000_pet_defs.sql` | 夥伴資料庫化:pet_defs 表(3 階段、emoji 或圖片、staff CRUD、自訂夥伴 owner)+ seed 9 隻起始夥伴 |
 | 18 | `20260616060000_pet_images_bucket.sql` | 夥伴圖片儲存空間:pet-images bucket(公開讀、staff 寫),供管理者上傳夥伴階段圖 |
 | 19 | `20260616070000_legendary_pets.sql` | 傳說特效夥伴:pet_defs 加 is_legendary/bonus_xp/bonus_coins/bonus_affection、user_pets 表 + buy_pet RPC、作答觸發器套用傳說加成;seed 皇小米/英語老師(2000) |
+| 20 | `20260616080000_admin_market.sql` | 管理者交易所 moderation:admin_get_market / admin_remove_listing RPC(staff-only,下架退回賣家) |
 
 ## 如何重建資料庫
 

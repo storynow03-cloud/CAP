@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+interface Listing {
+  id: number;
+  item_key: string;
+  label: string;
+  item_type: string;
+  value: string;
+  price: number;
+  seller_name: string;
+}
 
 interface Category {
   id: number;
@@ -48,6 +59,7 @@ export default function AdminShopPage() {
   const [newCat, setNewCat] = useState({ name: "", type: "theme", sort: 0 });
   const [newItem, setNewItem] = useState<Omit<Item, "id">>(emptyItem());
   const [editItem, setEditItem] = useState<Item | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]);
 
   async function load() {
     setLoading(true);
@@ -56,7 +68,17 @@ export default function AdminShopPage() {
     const d = await r.json();
     setCategories(d.categories ?? []);
     setItems(d.items ?? []);
+    const { data: mk } = await createClient().rpc("admin_get_market");
+    setListings((mk as Listing[]) ?? []);
     setLoading(false);
+  }
+
+  async function removeListing(l: Listing) {
+    if (!confirm(`強制下架「${l.label}」(賣家 ${l.seller_name})?道具會退回賣家。`)) return;
+    const { error } = await createClient().rpc("admin_remove_listing", { p_id: l.id });
+    if (error) { setMsg("下架失敗:" + error.message); return; }
+    setMsg("已下架並退回賣家");
+    load();
   }
   useEffect(() => { load(); }, []);
 
@@ -221,6 +243,31 @@ export default function AdminShopPage() {
             )}
           </div>
         ))}
+      </section>
+
+      {/* 玩家交易所 moderation */}
+      <section className="space-y-2">
+        <h2 className="font-bold">🤝 玩家交易所(上架中 {listings.length})</h2>
+        {listings.length === 0 ? (
+          <p className="rounded-2xl bg-white p-4 text-center text-sm text-slate-400 shadow-sm">目前沒有玩家上架的商品</p>
+        ) : (
+          listings.map((l) => (
+            <div key={l.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white p-3 shadow-sm">
+              <div className="flex min-w-0 items-center gap-2">
+                {l.item_type === "theme" ? (
+                  <span className="h-7 w-7 shrink-0 rounded-full" style={{ backgroundColor: l.value }} />
+                ) : (
+                  <span className="text-2xl">{l.value}</span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{l.label}</p>
+                  <p className="truncate text-xs text-slate-400">賣家 {l.seller_name}|🪙 {l.price}</p>
+                </div>
+              </div>
+              <button onClick={() => removeListing(l)} className="shrink-0 rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-600">強制下架</button>
+            </div>
+          ))
+        )}
       </section>
     </div>
   );

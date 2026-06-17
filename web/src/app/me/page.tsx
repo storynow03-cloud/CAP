@@ -6,7 +6,7 @@ import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, levelFromXp, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, fetchPets, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  nextStageReq, FINAL_STAGE, petMood, PET_SKILLS, CUSTOM_PET, CUSTOM_PETS,
+  nextStageReq, FINAL_STAGE, STAGE_REQ, petMood, PET_SKILLS, CUSTOM_PET, CUSTOM_PETS,
   type AchStats, type ShopItem, type PetDef,
 } from "@/lib/gamify";
 import PetView from "@/components/PetView";
@@ -479,6 +479,35 @@ export default function MePage() {
               </p>
             </div>
           </div>
+
+          {/* 進化圖鑑(觀看 3 階段進階圖與特效) */}
+          {activeDef && (
+            <div>
+              <h3 className="mb-2 font-bold">📖 進化圖鑑{legendaryActive && <span className="ml-1 text-sm text-amber-500">✨ 傳說特效</span>}</h3>
+              <div className="grid grid-cols-3 gap-2">
+                {[0, 1, 2].map((s) => {
+                  const unlocked = stage >= s;
+                  const fancy = (s >= FINAL_STAGE || legendaryActive) && unlocked;
+                  return (
+                    <div key={s}
+                      className={`rounded-2xl p-3 text-center shadow-sm ${fancy ? "bg-gradient-to-b from-amber-50 to-violet-50" : "bg-white"}`}>
+                      <div className="pet-showcase mx-auto grid h-14 w-14 place-items-center">
+                        {fancy && <span className="pet-aura" />}
+                        <span className={`relative ${fancy ? "pet-final" : ""} ${unlocked ? "" : "opacity-40 grayscale"}`}>
+                          <PetView petKey={profile.pet} defs={pets} level={lv.level} affection={petAff}
+                            customUrl={profile.pet_image_url} forceStage={s} px={48} emojiClass="text-4xl" />
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-bold">{STAGE_NAMES[s]}</p>
+                      <p className="text-[10px] text-slate-400">
+                        {unlocked ? "已解鎖" : `Lv${STAGE_REQ[s].level}${STAGE_REQ[s].affection ? `·好感${STAGE_REQ[s].affection}` : ""}`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* 夥伴技能(好感度解鎖) */}
           <div>
