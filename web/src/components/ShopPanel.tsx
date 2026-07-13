@@ -8,7 +8,8 @@ type EquipType = "theme" | "frame" | "nameplate" | "title";
 const EQUIP_COL: Record<EquipType, string> = {
   theme: "equipped_theme", frame: "equipped_frame", nameplate: "equipped_nameplate", title: "equipped_title",
 };
-const ORDER = ["theme", "frame", "nameplate", "title"];
+const EQUIP_TYPES = ["theme", "frame", "nameplate", "title"];
+const ORDER = ["theme", "frame", "nameplate", "title", "booster"];
 
 const BUY_ERR: Record<string, string> = {
   NOT_ENOUGH_COINS: "金幣不足 🪙",
@@ -22,7 +23,11 @@ interface Equipped {
   equipped_frame: string | null;
   equipped_nameplate: string | null;
   equipped_title: string | null;
+  boost_xp2x_left: number;
+  boost_coin2x_left: number;
 }
+
+const USE_ERR: Record<string, string> = { NO_ITEM: "沒有這個道具,先去買吧!" };
 
 function ItemFace({ item, size = "md" }: { item: ShopRow; size?: "md" | "lg" }) {
   const dim = size === "lg" ? "h-12 w-12" : "h-9 w-9";
@@ -38,6 +43,7 @@ function ItemFace({ item, size = "md" }: { item: ShopRow; size?: "md" | "lg" }) 
 export default function ShopPanel() {
   const [rows, setRows] = useState<ShopRow[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [inventory, setInventory] = useState<Map<string, number>>(new Map());
   const [eq, setEq] = useState<Equipped | null>(null);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
@@ -48,16 +54,28 @@ export default function ShopPanel() {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     const uid = u.user.id;
-    const [{ data: shop }, { data: items }, { data: p }] = await Promise.all([
+    const [{ data: shop }, { data: items }, { data: p }, { data: inv }] = await Promise.all([
       supabase.rpc("get_shop"),
       supabase.from("user_items").select("key").eq("user_id", uid),
-      supabase.from("profiles").select("coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title").eq("id", uid).maybeSingle(),
+      supabase.from("profiles").select("coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,boost_xp2x_left,boost_coin2x_left").eq("id", uid).maybeSingle(),
+      supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
     ]);
     setRows((shop as ShopRow[]) ?? []);
     setOwned(new Set((items ?? []).map((i) => i.key)));
+    setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setEq(p as Equipped);
     setLoading(false);
   }, []);
+
+  async function useBooster(key: "booster_xp2x" | "booster_coin2x") {
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("use_booster", { p_key: key });
+    setBusy(false);
+    if (error) { setMsg(USE_ERR[error.message] ?? "使用失敗:" + error.message); return; }
+    setMsg(key === "booster_xp2x" ? "⚡ XP 加倍已啟動,接下來 5 題 XP 雙倍!" : "💰 金幣加倍已啟動,接下來 5 題金幣雙倍!");
+    load();
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -91,7 +109,7 @@ export default function ShopPanel() {
     if (!eq) return;
     const price = 80;
     if (eq.coins < price) { setMsg("金幣不足 🪙(轉蛋要 80)"); return; }
-    const pool = rows.filter((i) => ["theme", "frame", "nameplate", "title"].includes(i.type) && !owned.has(i.key));
+    const pool = rows.filter((i) => EQUIP_TYPES.includes(i.type) && !owned.has(i.key));
     setBusy(true);
     const supabase = createClient();
     const { data: u } = await supabase.auth.getUser();
@@ -163,10 +181,19 @@ export default function ShopPanel() {
         </button>
       </div>
 
+      {/* 加成道具:目前生效中提示 */}
+      {(eq.boost_xp2x_left > 0 || eq.boost_coin2x_left > 0) && (
+        <section className="flex flex-wrap gap-2 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+          {eq.boost_xp2x_left > 0 && <span>⚡ XP 加倍生效中,剩 {eq.boost_xp2x_left} 題</span>}
+          {eq.boost_coin2x_left > 0 && <span>💰 金幣加倍生效中,剩 {eq.boost_coin2x_left} 題</span>}
+        </section>
+      )}
+
       {/* 分類商品 */}
       {ORDER.map((type) => {
         const list = rows.filter((r) => r.type === type);
         if (!list.length) return null;
+        const isBooster = type === "booster";
         return (
           <section key={type}>
             <h3 className="mb-2 font-bold">{SHOP_TYPE_LABEL[type] ?? type}</h3>
@@ -174,7 +201,8 @@ export default function ShopPanel() {
               {list.map((item) => {
                 const rar = RARITY[rarityOf(item.rarity)];
                 const have = owned.has(item.key) || item.price === 0;
-                const isEq = equippedKey(type as EquipType) === item.key;
+                const isEq = !isBooster && equippedKey(type as EquipType) === item.key;
+                const qty = inventory.get(item.key) ?? 0;
                 return (
                   <div key={item.key} className={`rounded-2xl bg-white p-3 text-center ${rar.ring} ${rar.glow}`}>
                     <div className="mb-1 flex justify-center">
@@ -182,7 +210,20 @@ export default function ShopPanel() {
                     </div>
                     <ItemFace item={item} size="lg" />
                     <p className="mt-1 truncate text-sm font-semibold">{item.label}</p>
-                    {isEq ? (
+                    {isBooster ? (
+                      <div className="mt-1 space-y-1">
+                        <p className="text-[10px] text-slate-400">擁有 {qty}</p>
+                        <div className="flex gap-1">
+                          <button onClick={() => buy(item.key)} disabled={busy}
+                            className="flex-1 rounded-full bg-amber-500 px-2 py-1 text-xs text-white disabled:opacity-50">🪙 {item.price}</button>
+                          {(item.key === "booster_xp2x" || item.key === "booster_coin2x") && (
+                            <button onClick={() => useBooster(item.key as "booster_xp2x" | "booster_coin2x")} disabled={busy || qty <= 0}
+                              className="flex-1 rounded-full accent-bg px-2 py-1 text-xs text-white disabled:opacity-40">使用</button>
+                          )}
+                        </div>
+                        {item.key === "booster_hint" && <p className="text-[10px] text-slate-400">練習作答時可直接使用</p>}
+                      </div>
+                    ) : isEq ? (
                       <button onClick={() => unequip(type as EquipType)}
                         className="mt-1 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs text-emerald-700">使用中・卸下</button>
                     ) : have ? (

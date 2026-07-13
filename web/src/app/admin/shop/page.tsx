@@ -31,12 +31,18 @@ interface Item {
   sort: number;
 }
 
-const TYPE_LABEL: Record<string, string> = { theme: "主題色", frame: "頭像框", food: "寵物食物" };
+const TYPE_LABEL: Record<string, string> = {
+  theme: "主題色", frame: "頭像框", nameplate: "名牌底圖", title: "稱號", food: "寵物食物", booster: "加成道具",
+};
 const TYPE_HINT: Record<string, string> = {
   theme: "內容填色碼,如 #4f46e5",
   frame: "內容填一個 emoji,如 ⭐",
+  nameplate: "內容填 CSS 漸層,如 linear-gradient(135deg,#f97316,#ec4899)",
+  title: "內容填顯示文字(可含 emoji),如 🌱 新星",
   food: "內容填好感度點數,如 10",
+  booster: "內容填一個 emoji 圖示,如 ⚡",
 };
+const TYPE_OPTIONS = Object.entries(TYPE_LABEL);
 
 const emptyItem = (): Omit<Item, "id"> => ({
   category_id: null,
@@ -131,7 +137,7 @@ export default function AdminShopPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">🛍️ 商城管理</h1>
-        <a href="/admin" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">← 帳號管理</a>
+        <a href="/admin" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">← 管理主控台</a>
       </div>
       {msg && <p className="rounded-lg bg-amber-50 p-2 text-center text-sm text-amber-700">{msg}</p>}
 
@@ -155,9 +161,7 @@ export default function AdminShopPage() {
             value={newCat.name} onChange={(e) => setNewCat({ ...newCat, name: e.target.value })} />
           <select className="rounded-lg border border-slate-300 px-3 py-2"
             value={newCat.type} onChange={(e) => setNewCat({ ...newCat, type: e.target.value })}>
-            <option value="theme">主題色</option>
-            <option value="frame">頭像框</option>
-            <option value="food">寵物食物</option>
+            {TYPE_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
           </select>
           <button onClick={addCategory} className="rounded-lg accent-bg py-2 font-semibold text-white">➕ 新增分類</button>
         </div>
@@ -173,9 +177,7 @@ export default function AdminShopPage() {
             value={newItem.label} onChange={(e) => setNewItem({ ...newItem, label: e.target.value })} />
           <select className="rounded-lg border border-slate-300 px-3 py-2"
             value={newItem.type} onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}>
-            <option value="theme">主題色</option>
-            <option value="frame">頭像框</option>
-            <option value="food">寵物食物</option>
+            {TYPE_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
           </select>
           <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder={TYPE_HINT[newItem.type]}
             value={newItem.value} onChange={(e) => setNewItem({ ...newItem, value: e.target.value })} />
@@ -200,9 +202,7 @@ export default function AdminShopPage() {
                     value={editItem.label} onChange={(e) => setEditItem({ ...editItem, label: e.target.value })} />
                   <select className="rounded-lg border border-slate-300 px-3 py-2"
                     value={editItem.type} onChange={(e) => setEditItem({ ...editItem, type: e.target.value })}>
-                    <option value="theme">主題色</option>
-                    <option value="frame">頭像框</option>
-                    <option value="food">寵物食物</option>
+                    {TYPE_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                   </select>
                   <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder={TYPE_HINT[editItem.type]}
                     value={editItem.value} onChange={(e) => setEditItem({ ...editItem, value: e.target.value })} />
@@ -221,6 +221,10 @@ export default function AdminShopPage() {
                 <div className="flex min-w-0 items-center gap-3">
                   {it.type === "theme" ? (
                     <span className="h-7 w-7 shrink-0 rounded-full" style={{ backgroundColor: it.value }} />
+                  ) : it.type === "nameplate" ? (
+                    <span className="h-7 w-9 shrink-0 rounded-lg" style={{ background: it.value }} />
+                  ) : it.type === "title" ? (
+                    <span className="text-sm font-bold">{it.value}</span>
                   ) : (
                     <span className="text-2xl">{it.value}</span>
                   )}

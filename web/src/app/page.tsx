@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LEVEL_NAMES, SUBJECTS } from "@/lib/types";
 import { levelFromXp, type QuestRow } from "@/lib/gamify";
 import Link from "next/link";
+import DailyLogin from "@/components/DailyLogin";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -87,6 +88,9 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-4">
+      {/* 每日簽到獎勵 */}
+      <DailyLogin />
+
       {/* 戰績列:等級 / 連勝 / 金幣(點進個人頁)*/}
       <Link
         href="/me"

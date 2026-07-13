@@ -6,7 +6,7 @@ import { SUBJECTS } from "@/lib/types";
 import {
   ACHIEVEMENTS, levelFromXp, petStage, STAGE_NAMES,
   itemByKey, fetchShopItems, fetchPets, affectionProgress, AFFECTION_NAMES, MAX_AFFECTION_LEVEL,
-  nextStageReq, FINAL_STAGE, STAGE_REQ, petMood,
+  nextStageReq, FINAL_STAGE, STAGE_REQ, petMood, AFFECTION_MILESTONES,
   type AchStats, type ShopItem, type PetDef,
 } from "@/lib/gamify";
 import PetView from "@/components/PetView";
@@ -50,6 +50,7 @@ interface Profile {
   equipped_title: string | null;
   pet: string;
   pet_affection: number;
+  affection_claimed: number;
   pet_fed_at: string | null;
   pet_play_day: string | null;
   care_streak: number;
@@ -83,13 +84,13 @@ export default function MePage() {
 
     const [{ data: p }, { data: inv }, shop, { data: exp }, petList, { data: myPets }, { data: ach }, { data: mastery }, ac, an, conq, exam] =
       await Promise.all([
-        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
+        supabase.from("profiles").select("nickname,xp,coins,equipped_theme,equipped_frame,equipped_nameplate,equipped_title,pet,pet_affection,affection_claimed,pet_fed_at,pet_play_day,care_streak,avatar_url,role").eq("id", uid).maybeSingle(),
         supabase.from("inventory").select("item_key,qty").eq("user_id", uid),
         fetchShopItems(supabase),
         supabase.from("pet_expeditions").select("*").eq("user_id", uid).in("status", ["active", "done"]).order("id", { ascending: false }).limit(1),
         fetchPets(supabase),
         supabase.from("user_pets").select("pet_key").eq("user_id", uid),
-        supabase.from("user_achievements").select("key").eq("user_id", uid),
+        supabase.from("user_achievements").select("key,rewarded").eq("user_id", uid),
         supabase.from("mastery").select("level"),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid).eq("is_correct", true),
         supabase.from("attempts").select("*", { count: "exact", head: true }).eq("user_id", uid),
@@ -122,13 +123,29 @@ export default function MePage() {
       examCount: exam.count ?? 0,
     };
 
-    const already = new Set((ach ?? []).map((a) => a.key));
+    const achRows = (ach ?? []) as { key: string; rewarded: boolean }[];
+    const already = new Set(achRows.map((a) => a.key));
     // 檢查新解鎖的成就,寫入 DB
     const newly = ACHIEVEMENTS.filter((a) => !already.has(a.key) && a.check(s));
     if (newly.length) {
       await supabase.from("user_achievements").upsert(newly.map((a) => ({ user_id: uid, key: a.key })));
       newly.forEach((a) => already.add(a.key));
     }
+    // 領取獎勵:新解鎖的 + 過去解鎖但尚未領取的(相容舊資料)
+    const toClaim = [
+      ...newly.map((a) => a.key),
+      ...achRows.filter((a) => !a.rewarded).map((a) => a.key),
+    ];
+    let claimedMsg = "";
+    for (const key of [...new Set(toClaim)]) {
+      const { data: r } = await supabase.rpc("claim_achievement_reward", { p_key: key });
+      const row = Array.isArray(r) ? r[0] : r;
+      if (row) {
+        const def = ACHIEVEMENTS.find((a) => a.key === key);
+        claimedMsg = `🏅 解鎖成就「${def?.label ?? key}」!獲得 ${row.reward_xp} XP・${row.reward_coins} 🪙`;
+      }
+    }
+    if (claimedMsg) setMsg(claimedMsg);
 
     setProfile(p as Profile);
     setShopItems(shop);
@@ -258,6 +275,21 @@ export default function MePage() {
     load();
   }
 
+  async function claimAffection() {
+    setBusy(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc("claim_affection_reward");
+    setBusy(false);
+    if (error) {
+      setMsg(error.message === "NOT_YET" ? "好感度還沒到下一個里程碑" :
+        error.message === "ALL_CLAIMED" ? "所有里程碑獎勵都領完了!" : "領取失敗:" + error.message);
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    setMsg(`🎉 好感度里程碑達成!獲得 ${row?.reward ?? ""} 🪙`);
+    load();
+  }
+
   if (loading || !profile || !stats)
     return <p className="py-12 text-center text-slate-500">載入中…</p>;
 
@@ -347,18 +379,20 @@ export default function MePage() {
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/25">
           <div className="h-full rounded-full bg-white" style={{ width: `${(lv.intoLevel / lv.levelSpan) * 100}%` }} />
         </div>
-        <p className="mt-1 text-xs opacity-80">再 {lv.toNext} XP 升 Lv{lv.level + 1}</p>
+        <p className="mt-1 text-xs opacity-80">
+          再 {lv.toNext} XP 升 Lv{lv.level + 1}(升級送 🪙{(lv.level + 1) * 20},夥伴等級也會一起變強!)
+        </p>
       </section>
 
-      {/* 管理者:帳號管理入口 */}
+      {/* 管理者:管理後台入口 */}
       {(profile.role === "teacher" || profile.role === "parent") && (
         <a href="/admin"
           className="flex items-center justify-between rounded-2xl bg-slate-800 px-5 py-4 text-white shadow-sm transition hover:bg-slate-700">
           <span className="flex items-center gap-3">
             <span className="text-2xl">🛠️</span>
             <span>
-              <span className="block font-bold">帳號管理</span>
-              <span className="block text-xs opacity-70">新增/編輯/刪除帳號(管理者)</span>
+              <span className="block font-bold">管理後台</span>
+              <span className="block text-xs opacity-70">帳號・商城・夥伴・秘境(管理者)</span>
             </span>
           </span>
           <span className="text-xl">→</span>
@@ -393,6 +427,9 @@ export default function MePage() {
                 <div className={`text-3xl ${got ? "" : "grayscale"}`}>{got ? a.emoji : "🔒"}</div>
                 <p className="mt-1 text-sm font-bold">{a.label}</p>
                 <p className="text-xs text-slate-500">{a.desc}</p>
+                <p className={`mt-1 text-[10px] font-semibold ${got ? "text-amber-500" : "text-slate-400"}`}>
+                  {a.reward_xp} XP・{a.reward_coins} 🪙
+                </p>
               </div>
             );
           })}
@@ -461,6 +498,30 @@ export default function MePage() {
                 {aff.toNext > 0 ? `再 ${aff.toNext} 好感度可提升親密度` : "已達最高親密度!✨"}
               </p>
             </div>
+
+            {/* 好感度里程碑獎勵(累積好感度達標即可領金幣,和進化親密度是兩件事) */}
+            {(() => {
+              const claimed = profile.affection_claimed ?? 0;
+              const done = claimed >= AFFECTION_MILESTONES.length;
+              const next = !done ? AFFECTION_MILESTONES[claimed] : null;
+              const ready = !!next && petAff >= next.at;
+              return (
+                <div className="mt-3 flex items-center justify-between rounded-xl bg-rose-50 px-3 py-2 text-left">
+                  <div>
+                    <p className="text-xs font-semibold text-rose-600">🎁 好感度里程碑獎勵</p>
+                    <p className="text-[11px] text-slate-500">
+                      {done ? "已全部領完!" : `達好感度 ${next!.at} 可領 ${next!.coins}🪙(${claimed}/${AFFECTION_MILESTONES.length})`}
+                    </p>
+                  </div>
+                  {!done && (
+                    <button onClick={claimAffection} disabled={busy || !ready}
+                      className="rounded-full bg-rose-500 px-3 py-1 text-xs font-bold text-white disabled:opacity-40">
+                      {ready ? "領取" : "未達成"}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 進化圖鑑(觀看 3 階段進階圖與特效) */}

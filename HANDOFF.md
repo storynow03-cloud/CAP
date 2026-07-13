@@ -71,11 +71,12 @@ D:\Claude\國中會考\
 
 ## 5. 資料庫(Supabase public schema)
 
-**完整結構在 `supabase/migrations/*.sql`(可重建,見該資料夾 README)。**
-表:`profiles, questions, attempts, mastery, wrong_book, exam_sessions, daily_stats, contests, contest_entries, daily_quests, user_achievements, user_items, friendships, duels, boss_clears`
-RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_duel, get_duel, my_duels`
-觸發器:`on_attempt_gamify`(作答自動發 XP/金幣/任務/週XP)、`handle_new_user`(自動建 profile+好友碼)
-全表開 RLS;大會考只有 role=teacher/parent 能建。
+**完整結構在 `supabase/migrations/*.sql`(可重建,見該資料夾 README,24 個檔依序套用)。**
+表(核心):`profiles, questions, attempts, mastery, wrong_book, exam_sessions, daily_stats, contests, contest_entries`
+表(遊戲化):`daily_quests, user_achievements, user_items, friendships, duels, boss_clears, shop_categories, shop_items, inventory, market_listings, pet_defs, user_pets, pet_expeditions, realms, realm_participants`
+RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_duel, get_duel, my_duels, buy_item, buy_pet, buy_food, feed_pet, pet_play, start_expedition/claim_expedition, create_listing/buy_listing, admin_remove_listing, daily_login, claim_affection_reward, claim_achievement_reward, use_booster, use_hint, join_realm, claim_realm_reward, get_realms`
+觸發器:`on_attempt_gamify`(作答自動發 XP/金幣/任務/週XP/夥伴加成/加倍卡/探險/秘境進度,**單一權威加成來源在 pet_defs**)、`on_levelup`(升級發金幣)、`on_wrong_overcome`(錯題克服發獎)、`handle_new_user`(自動建 profile+好友碼)
+全表開 RLS;大會考、商城/夥伴/秘境的寫入只有 role=teacher/parent 能做(staff-only policy + `/api/admin/*` 後端 service key 雙重保護)。
 
 ## 6. 測試帳號(已建,免信箱驗證)
 
@@ -113,40 +114,40 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 - ✅ LibreOffice 全量轉換(1039/1039 完成)+ 圖片版匯入(數學 8,597 / 自然 8,873 可用)。
 - ✅ 遊戲化 A/B/C 全做完(見 7.5)。
 - ✅ 導覽列分類(首頁/練習/對戰/歷程/我的)、個人頁改暱稱+上傳頭像。
-- 🔜 **遊戲化經濟系統(三項):見 9.5**。順序 #三 商城DB化 → #二 寵物餵食 → #四 交易所。
-  - ✅ **#三 商城 DB 化完成**(2026-06-15):shop_categories/shop_items 表 + seed(8 主題/4 框/3 食物)、`/me` 商城改讀 DB、`/admin/shop` 管理 CRUD、`/api/admin/shop` 後端(requireStaff)。`itemByKey` 改吃商品陣列;layout/page/friends 改用 DB 解析主題色/頭框。
-  - ✅ **#二 寵物餵食完成**(2026-06-15):profiles.pet_affection/pet_fed_at、inventory 消耗品表、buy_food/feed_pet 原子 RPC(防作弊);`/me` 夥伴分頁有好感度條(5 級親密度)+ 買/餵食物;Quiz.tsx 作答時夥伴打氣(台詞依好感度變親密,考試模式不打擾)。
-  - ✅ **#四 玩家交易所完成**(2026-06-15):market_listings 表 + create_listing/cancel_listing/buy_listing/get_market 原子 RPC(託管制:上架即從 user_items 移出並卸下裝備,防一物多賣;購買檢查金幣/非自己/未擁有);`/market` 頁(上架/下架/購買),入口在「對戰」hub。**經濟系統三項全完成。**
-
-- 🔜 **遊戲化擴充(使用者 6/16 要求,分階段)**:
-  - ✅ **Phase 1a 商店獨立模組 + 商城專業化完成**(2026-06-16):導覽列新增「🏪 商店」(6 大類),`/shop` 雙分頁(官方商城 `ShopPanel` / 玩家交易所 `MarketPanel`);商品加稀有度(普通/稀有/史詩/傳說,有光效)、名牌底圖、稱號;`get_shop`/`buy_item` RPC(server 算每日精選 7 折、統一購買);`/me` 移除商城分頁(改連 /shop),個人卡套用名牌底圖+稱號。商城/交易所原 /me、/arena 入口已移除。
-  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…需 buff 表 + 觸發器/Quiz 整合)。
-  - ✅ **Phase 2a 夥伴擴充 + 進化重做完成**(2026-06-16):PETS 從 4→14 隻(經典4/寶可夢風5/皮克敏風5,emoji 致敬);進化改吃「等級+好感度」雙條件(STAGE_REQ:Lv3→Lv7+好感50→Lv15+好感200),petStage/petEmoji 加 affection 參數;完全體有華麗光環/漂浮/閃光(globals.css);/me 夥伴頁顯示進化條件提示、夥伴按 origin 分組;get_friends_board 加回傳 pet_affection。
-  - ✅ **Phase 2b 心情/每日照顧 + 技能加成完成**(2026-06-16):夥伴心情(距上次照顧天數,😊→😢);每日陪伴 `pet_play` RPC **需當天先做 5 題才能陪伴**(互動綁做題)、+好感度、照顧 streak(每 7 天給金幣);夥伴技能依好感度解鎖(🍀80金幣+20%、⚡200 XP+10%、🛡️400 XP+5%),作答觸發器自動加成。E2E 驗證 NEED_STUDY 門檻、技能加成數值、每日一次皆正確。
-  - ✅ **Phase 2c 探險/遠征完成**(2026-06-16):pet_expeditions 表 + start/claim/cancel_expedition RPC;**作答觸發器自動推進該科探險進度**(做題=探險燃料),達標可領 XP/金幣/食物/好感度;/me 夥伴頁有探險面板(選科目+3 種規模、進度條、領獎/召回)。E2E 驗證做題自動推進+領獎正確。
-  - ✅ **自訂夥伴圖片完成**(2026-06-16):profiles.pet_image_url;`/me` 夥伴頁可上傳自己的圖當夥伴(pet='custom'),內建範例「皇小米」(web/public/partner/);個人卡/showcase/探險/Quiz 打氣都會顯示自訂圖,進化光環/好感度/技能照常。
-  - 🔜 **Phase 1b 消耗道具/加成包**(XP 加倍卡、提示券…buff 表+觸發器/Quiz)。
-- 🔜 **遊戲化擴充 Phase 3(使用者 6/16 第二批要求,分階段):夥伴 DB 化 + 格位經濟 + 管理者 CRUD + 交易**:
-  - ✅ **Phase 3a 夥伴資料庫化完成**(2026-06-16):pet_defs 表(管理者可 CRUD、3 階段、每階段 emoji 或上傳圖)取代寫死的 PETS;進化 4 階改 3 階(幼年/成長期/完全體);新增共用 `PetView` 元件(emoji/圖片統一渲染),/me、好友、Quiz 全改 DB 驅動。seed 9 隻起始夥伴(經典4+寶可夢風5);皮克敏改由管理者上傳正確圖(避免版權)。
-  - 🔜 **Phase 3b 夥伴格位經濟**:免費 1 隻、每多開 1 隻 2000 金幣、上限 5(user_pets 表 + unlock_pet RPC)。
-  - ✅ **Phase 3c 管理者夥伴 CRUD 完成**(2026-06-16):`/admin/pets` + `/api/admin/pets`(requireStaff);可新增/編輯/刪除夥伴,每階段 emoji 或上傳圖片(pet-images bucket);入口在 /admin。
-  - ✅ **傳說特效夥伴完成**(2026-06-16):pet_defs 加 is_legendary + bonus_xp/coins/affection(管理者於 /admin/pets 設定);新增 user_pets 表 + buy_pet RPC(夥伴可購買、免費=直接可用);**作答觸發器套用傳說加成**(XP%/金幣%/每答對好感度);Quiz 作答對傳說夥伴有光環/閃光特效;/me「選擇夥伴」自訂下方加「✨傳說夥伴」區(購買/裝備);皇小米、英語老師 seed 為 2000 元傳說夥伴。E2E:買扣 2000、ALREADY_OWNED、傳說 XP+10%(19→20)、+好感皆正確。
-  - ✅ **Phase 3d 管理者交易所 moderation 完成**(2026-06-16):admin_get_market / admin_remove_listing RPC(staff-only,強制下架退回賣家);UI 在 /admin/shop 底部「玩家交易所」區。
-  - ✅ **Phase 3e 進化圖鑑完成**(2026-06-16):/me 夥伴頁「📖 進化圖鑑」顯示當前夥伴 3 階段(幼年/成長期/完全體)外觀,未解鎖灰階+顯示條件,完全體/傳說有光環特效(PetView 加 forceStage)。
-  - ✅ **加成統一 + 多項調整完成**(2026-06-16):
-    - **加成單一來源**:移除寫死的好感度技能(原本 gamify PET_SKILLS + 觸發器各一份),全部改吃 pet_defs 每隻夥伴的 bonus_xp/coins/affection;新增 bonus_subjects(考科限定,空=全科)。觸發器/管理頁/個人頁讀同一份。
-    - **管理頁加考科複選**(/admin/pets BonusFields);加成對任何夥伴生效,is_legendary 只決定華麗特效。
-    - **非經典夥伴皆付費**:寶可夢 500;新增瑪莉歐×5、柯南×5(500,emoji 佔位,**待管理者於 /admin/pets 換上傳圖**)。
-    - **移除自訂上傳夥伴**(pet=custom 玩家改回 cat;pet_image_url 欄位停用)。
-    - **傳說進化圖鑑特效隨階段升級**。E2E:科目限定加成(數學+100%、國文 0)、舊技能已移除皆正確。
-  - 🔜 **仍待做:Phase 3e 自創夥伴上架交易所**(自訂上傳已移除,此項待重新定義)、**1b 加成道具**。
-  - 🔜 **Phase 3d 管理者交易所 CRUD**:可下架/刪除玩家 listing(moderation)。
-  - 🔜 **Phase 3e 自創夥伴上架交易所 + 進化圖/特效展示**。
-- ⏳ **UI 視覺打磨**(使用者多次說之後再修;首頁已重排但細節待調)。
-- ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先)。
+- ✅ **遊戲化經濟系統(9.5 三項)全完成**:#三 商城 DB 化 → #二 寵物餵食 → #四 玩家交易所(2026-06-15)。
+- ✅ **遊戲化擴充 Phase 1~3(2026-06-16,見 7.6 完整清單)**:商店獨立模組、商城專業化、夥伴 DB 化+14→9(移除亂做的皮克敏 emoji)、3 階段進化、探險、心情陪伴、傳說夥伴、管理者 CRUD(商城/夥伴/交易所 moderation)、加成統一到單一來源。
+- ✅ **經濟系統深度優化 + 秘境(2026-07-13,見 7.7)**:解決「金幣賺太快/太慢」三風險、等級與好感度有實質用途、每日簽到、成就給獎、消耗道具、秘境(限時個人/團體任務)、管理後台重整為統一 hub。
+- 🔜 **待補圖**:瑪莉歐×5、柯南×5 目前是 emoji 佔位,需管理者到 `/admin/pets` 上傳原創或授權圖片(不可用官方角色圖,見 7.7 說明)。
+- ⏳ **UI 視覺打磨**(持續進行中,7.7 已補一輪國中趣味風格,細節仍可再調)。
+- ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先,本輪尚未測試)。
 - ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
 - ⏳ 英聽音檔、克漏字題組拆分、115 真題 PDF 轉換、社會科圖片題(比照 LibreOffice 流程)。
 - ⏳(商業化才需)AI 出題管線替換康軒題,見 docs/08。
+
+## 7.6 遊戲化擴充 Phase 1~3(2026-06-16,詳細記錄見進度日誌)
+
+- **商店**:獨立成 `/shop`(官方商城 `ShopPanel` + 玩家交易所 `MarketPanel`),稀有度分級、名牌底圖、稱號、每日精選 7 折、`get_shop`/`buy_item` 統一購買 RPC。
+- **夥伴**:資料庫化(`pet_defs` 表,管理者 CRUD、每階段 emoji 或上傳圖),3 階段進化(幼年/成長期/完全體,吃等級+好感度雙條件),探險(做題自動推進)、心情/每日陪伴(需當天先做 5 題)、傳說特效夥伴(可購買、加成由管理者設定)。
+- **管理後台**:`/admin/shop`(商城 CRUD + 交易所強制下架)、`/admin/pets`(夥伴 CRUD + 上傳圖 + 加成設定)。
+- **重要教訓**:加成邏輯一度在 `gamify.ts` 與 DB 觸發器各寫一份(好感度技能),已於 7.7 統一收進 `pet_defs`,以後任何加成類設定都只能有一個權威來源(DB),前端只讀不重算。
+
+## 7.7 經濟系統深度優化 + 秘境(2026-07-13,使用者要求「一次做完、之後再測」)
+
+使用者提出 6 點回饋 + 要求以資深遊戲設計角度分析金幣平衡,並指出三個風險:①新手前期金幣牆、②弱勢學生賺太慢、③金幣只有外觀出口。逐一處理:
+
+- **風險1/2**:每日簽到 `daily_login`(首日就給、階梯獎勵至第 7 天封頂)、答錯也給 1 金幣參與獎。
+- **風險3**:新增消耗道具(Phase 1b):XP/金幣加倍卡(5 題疊加)、提示券(Quiz 內消去一個錯的選項),`use_booster`/`use_hint` RPC。
+- **等級用途**:升級自動發金幣(`on_levelup` 觸發器,每級×20)。
+- **好感度用途**:里程碑領獎(`claim_affection_reward`,50/150/300/600 好感度對應 50/100/200/400 金幣)。
+- **成就給獎**:12 個成就補上 XP/金幣獎勵(`claim_achievement_reward`,DB 端權威獎勵表防竄改)。
+- **錯題克服給獎**:`on_wrong_overcome` 觸發器,複習把錯題變 overcome 自動 +10 金幣 +20 XP。
+- **秘境**(使用者原提「家長懸賞」,改設計為限時 + 可團體參加):`realms`/`realm_participants` 表,管理者 `/admin/realms` 發布(標題/科目/目標題數/獎勵/個人或團體/起訖時間),學生 `/realm` 加入、做題自動推進、達標領獎;團體模式全員進度加總,每人各領一份(不瓜分)。
+- **管理後台整理**(回應「不要各模組亂放,要有邏輯」):`/admin` 改成 4 張卡片的主控台(帳號/商城/夥伴/秘境),原帳號管理搬到 `/admin/users`,各子頁「返回」統一連回主控台。`/admin/shop` 商品類型下拉補齊 nameplate/title/booster(先前遺漏,管理者無法從 UI 建立這幾類商品)。
+- **加成邏輯稽核**(回應「確認資料共用,不是各模組各自一份」):唯一發現的重複是好感度技能(gamify.ts 常數 + 觸發器各寫一份,已於前一輪統一);本輪新增的加成/獎勵表都直接寫在觸發器/RPC 內、前端只顯示 DB 回傳值,沒有第二份權威來源。
+- **瑪莉歐/柯南人物圖**:使用者要求「手繪 Q 版、長得像即可」——**已婉拒**,因為即使卡通化,可辨識角色仍屬重製受版權/商標保護的角色。目前 10 隻皆為 emoji 佔位,待管理者到 `/admin/pets` 上傳原創或已取得授權的圖片。
+- migration:`20260617000000_economy_depth.sql`、`20260617010000_boosters.sql`、`20260617020000_realms.sql`,已套用至 Supabase。
+- 測試:`scripts/test-economy-depth.mjs`,24 項全綠(每日登入/好感度里程碑/升級金幣/錯題克服/答錯參與獎/成就獎勵/加倍卡/提示券/秘境個人+團體 完整涵蓋)。
+- ⚠️ 使用者要求「這次先不測試」,本輪只做到自動化 E2E,尚未有真人透過瀏覽器操作驗證,下次對話應優先進行。
 
 ## 9. 重要教訓(別重蹈覆轍)
 
@@ -201,6 +202,7 @@ RPC:`get_topics, get_contest_leaderboard, add_friend, get_friends_board, create_
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-07-13:**經濟系統深度優化 + 秘境(詳見 7.7)**。使用者提 6 點回饋(加成要標科目、傳說夥伴階段特效要更華麗、取消自訂上傳夥伴、非經典皆付費、新增瑪莉歐×5+柯南×5、取消技能改在夥伴上設加成)+ 要求以資深遊戲設計角度分析金幣平衡並處理三風險(前期牆/弱勢學生太慢/金幣無功能出口)。三支新 migration(`20260617000000_economy_depth.sql`、`boosters.sql`、`realms.sql`)已套用:每日簽到、升級/好感度里程碑/成就/錯題克服皆給獎、消耗道具(加倍卡/提示券)、秘境(限時個人/團體任務,回應「家長懸賞應限時可團體」的需求)。管理後台重整為 `/admin` 統一 hub(帳號/商城/夥伴/秘境四張卡),`/admin/shop` 商品類型補齊先前遺漏的 nameplate/title/booster。**婉拒手繪瑪莉歐/柯南**(即使 Q 版仍屬重製受版權角色),10 隻改 emoji 佔位待管理者上傳授權圖。`npm run build` 全綠(31 routes);新測試腳本 `scripts/test-economy-depth.mjs` 24/24 通過(含修正一個 plpgsql OUT 參數與欄位同名的 ambiguous column bug)。**使用者要求本輪不測試,下次對話應優先做真人瀏覽器驗證。**
 - 2026-06-16(續9):**加成統一(資料單一來源)+ 多項調整**。migration `20260616090000_pet_bonus_unify.sql`(已套用)。移除寫死好感度技能、改吃 pet_defs 每隻加成 + bonus_subjects 考科限定;/admin/pets 加考科複選、加成適用任何夥伴;寶可夢 500、新增瑪莉歐/柯南各 5(500,emoji 佔位待換圖);移除自訂上傳;傳說進化圖鑑特效分階升級。build 通過;科目限定加成 + 技能移除 E2E 全綠。
 - 2026-06-16(續8):**Phase 3d 交易所 moderation + 3e 進化圖鑑**。migration `20260616080000_admin_market.sql`(admin_get_market/admin_remove_listing,已套用)。/admin/shop 加玩家交易所強制下架;/me 加進化圖鑑(PetView forceStage)。build 通過;moderation staff-only 已 E2E。
 - 2026-06-16(續7):**傳說特效夥伴**。migration `20260616070000_legendary_pets.sql`(pet_defs 加 is_legendary/bonus 欄、user_pets 表、buy_pet RPC、觸發器套用傳說加成、seed 皇小米+英語老師 2000,已套用)。gamify PetDef 加欄位、CUSTOM_PETS 清空(皇小米改 pet_def);/me 加「傳說夥伴」購買區 + 特效;Quiz 傳說特效;/admin/pets 可設傳說與加成。E2E 全綠。

@@ -8,6 +8,7 @@ export default function ArenaHub() {
     { href: "/friends", emoji: "👬", label: "好友 PK", sub: "加好友、週排行、1v1 對戰", from: "from-sky-500", to: "to-indigo-600" },
     { href: "/duel", emoji: "⚔️", label: "對戰紀錄", sub: "查看你的 PK 戰績", from: "from-amber-500", to: "to-orange-600" },
     { href: "/contest", emoji: "🏆", label: "大會考", sub: "老師/家長出卷,全班排名", from: "from-emerald-500", to: "to-teal-600" },
+    { href: "/realm", emoji: "🗺️", label: "秘境", sub: "限時懸賞任務,個人挑戰或全隊合力", from: "from-violet-500", to: "to-fuchsia-600" },
   ];
   return (
     <div className="space-y-4">

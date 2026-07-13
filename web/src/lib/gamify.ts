@@ -24,11 +24,15 @@ export interface QuestRow {
 }
 
 // ===== 成就 =====
+// 獎勵值(reward_xp/reward_coins)僅供前端顯示;實際發放由 DB RPC claim_achievement_reward
+// 內建同一份對照表(單一權威來源在 DB,前端顯示需與其保持一致)。
 export interface AchievementDef {
   key: string;
   emoji: string;
   label: string;
   desc: string;
+  reward_xp: number;
+  reward_coins: number;
   check: (s: AchStats) => boolean;
 }
 export interface AchStats {
@@ -42,18 +46,18 @@ export interface AchStats {
 }
 
 export const ACHIEVEMENTS: AchievementDef[] = [
-  { key: "first_step", emoji: "👣", label: "踏出第一步", desc: "完成第 1 題", check: (s) => s.totalAnswered >= 1 },
-  { key: "answer_100", emoji: "💯", label: "百題達成", desc: "累計答對 100 題", check: (s) => s.totalCorrect >= 100 },
-  { key: "answer_500", emoji: "🔥", label: "刷題高手", desc: "累計答對 500 題", check: (s) => s.totalCorrect >= 500 },
-  { key: "streak_3", emoji: "📅", label: "三日不間斷", desc: "連續達標 3 天", check: (s) => s.streakDays >= 3 },
-  { key: "streak_7", emoji: "🗓️", label: "一週不斷電", desc: "連續達標 7 天", check: (s) => s.streakDays >= 7 },
-  { key: "streak_30", emoji: "🏅", label: "月度鐵人", desc: "連續達標 30 天", check: (s) => s.streakDays >= 30 },
-  { key: "master_1", emoji: "⭐", label: "初露鋒芒", desc: "任一單元達精熟(Lv4)", check: (s) => s.maxTopicLevel >= 4 },
-  { key: "master_5", emoji: "🌟", label: "五項精熟", desc: "5 個單元達精熟", check: (s) => s.masteredTopics >= 5 },
-  { key: "challenger", emoji: "⚔️", label: "挑戰者", desc: "任一單元達挑戰級(Lv5)", check: (s) => s.maxTopicLevel >= 5 },
-  { key: "conquer_10", emoji: "🛡️", label: "克服弱點", desc: "克服 10 題錯題", check: (s) => s.conquered >= 10 },
-  { key: "conquer_50", emoji: "🏆", label: "錯題終結者", desc: "克服 50 題錯題", check: (s) => s.conquered >= 50 },
-  { key: "exam_5", emoji: "🎯", label: "模考常客", desc: "完成 5 次模擬考", check: (s) => s.examCount >= 5 },
+  { key: "first_step", emoji: "👣", label: "踏出第一步", desc: "完成第 1 題", reward_xp: 20, reward_coins: 10, check: (s) => s.totalAnswered >= 1 },
+  { key: "answer_100", emoji: "💯", label: "百題達成", desc: "累計答對 100 題", reward_xp: 100, reward_coins: 50, check: (s) => s.totalCorrect >= 100 },
+  { key: "answer_500", emoji: "🔥", label: "刷題高手", desc: "累計答對 500 題", reward_xp: 300, reward_coins: 150, check: (s) => s.totalCorrect >= 500 },
+  { key: "streak_3", emoji: "📅", label: "三日不間斷", desc: "連續達標 3 天", reward_xp: 60, reward_coins: 30, check: (s) => s.streakDays >= 3 },
+  { key: "streak_7", emoji: "🗓️", label: "一週不斷電", desc: "連續達標 7 天", reward_xp: 150, reward_coins: 80, check: (s) => s.streakDays >= 7 },
+  { key: "streak_30", emoji: "🏅", label: "月度鐵人", desc: "連續達標 30 天", reward_xp: 500, reward_coins: 300, check: (s) => s.streakDays >= 30 },
+  { key: "master_1", emoji: "⭐", label: "初露鋒芒", desc: "任一單元達精熟(Lv4)", reward_xp: 80, reward_coins: 40, check: (s) => s.maxTopicLevel >= 4 },
+  { key: "master_5", emoji: "🌟", label: "五項精熟", desc: "5 個單元達精熟", reward_xp: 200, reward_coins: 100, check: (s) => s.masteredTopics >= 5 },
+  { key: "challenger", emoji: "⚔️", label: "挑戰者", desc: "任一單元達挑戰級(Lv5)", reward_xp: 150, reward_coins: 80, check: (s) => s.maxTopicLevel >= 5 },
+  { key: "conquer_10", emoji: "🛡️", label: "克服弱點", desc: "克服 10 題錯題", reward_xp: 80, reward_coins: 40, check: (s) => s.conquered >= 10 },
+  { key: "conquer_50", emoji: "🏆", label: "錯題終結者", desc: "克服 50 題錯題", reward_xp: 250, reward_coins: 120, check: (s) => s.conquered >= 50 },
+  { key: "exam_5", emoji: "🎯", label: "模考常客", desc: "完成 5 次模擬考", reward_xp: 100, reward_coins: 50, check: (s) => s.examCount >= 5 },
 ];
 
 // ===== 商城(資料庫驅動,目錄存在 shop_categories / shop_items)=====
@@ -216,6 +220,14 @@ export function affectionProgress(affection: number): { level: number; into: num
   return { level, into: affection - base, span, toNext: AFFECTION_TIERS[level + 1] - affection };
 }
 export const AFFECTION_NAMES = ["陌生", "熟悉", "親近", "信賴", "形影不離"];
+
+// 好感度里程碑獎勵(顯示用;實際發獎在 DB RPC claim_affection_reward,兩邊需一致)
+export const AFFECTION_MILESTONES = [
+  { at: 50, coins: 50 },
+  { at: 150, coins: 100 },
+  { at: 300, coins: 200 },
+  { at: 600, coins: 400 },
+];
 
 // 夥伴心情(由「距上次照顧的天數」決定)
 export const PET_MOODS = [

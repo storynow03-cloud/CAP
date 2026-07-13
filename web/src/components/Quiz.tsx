@@ -37,14 +37,19 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const [pet, setPet] = useState<{ key: string; level: number; affection: number; imageUrl: string | null } | null>(null);
   const [petDefs, setPetDefs] = useState<PetDef[]>([]);
   const [cheer, setCheer] = useState("");
+  const [hintQty, setHintQty] = useState(0);
+  const [hintBusy, setHintBusy] = useState(false);
+  const [eliminated, setEliminated] = useState<Set<number>>(new Set());
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
   const supabase = createClient();
 
   const q = queue[idx];
+  const allowHint = mode !== "exam"; // 正式模考不能用提示券
 
   useEffect(() => {
     startRef.current = Date.now();
+    setEliminated(new Set());
   }, [idx]);
 
   // 載入夥伴(考試模式不打擾)
@@ -60,8 +65,25 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
         if (data)
           setPet({ key: data.pet, level: levelFromXp(data.xp ?? 0).level, affection: data.pet_affection ?? 0, imageUrl: data.pet_image_url ?? null });
       });
+    supabase.from("inventory").select("qty").eq("user_id", userId).eq("item_key", "booster_hint").maybeSingle()
+      .then(({ data }) => setHintQty(data?.qty ?? 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function useHint() {
+    if (hintQty <= 0 || revealed || hintBusy) return;
+    setHintBusy(true);
+    const { error, data } = await supabase.rpc("use_hint");
+    setHintBusy(false);
+    if (error) return;
+    setHintQty(typeof data === "number" ? data : Math.max(0, hintQty - 1));
+    const wrongLeft = (q.options ?? []).map((_, i) => i)
+      .filter((i) => i !== q.answer && !eliminated.has(i));
+    if (wrongLeft.length > 1) {
+      const pick = wrongLeft[Math.floor(Math.random() * wrongLeft.length)];
+      setEliminated((prev) => new Set(prev).add(pick));
+    }
+  }
 
   if (!q || finished) {
     return (
@@ -173,23 +195,32 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
           className="qhtml whitespace-pre-wrap text-lg leading-relaxed"
           dangerouslySetInnerHTML={{ __html: q.question }}
         />
+        {allowHint && !revealed && (
+          <button onClick={useHint} disabled={hintQty <= 0 || hintBusy}
+            className="mt-3 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700 disabled:opacity-40">
+            💡 使用提示券(消去一個錯的選項)・剩 {hintQty}
+          </button>
+        )}
         <div className="mt-5 space-y-2">
           {(q.options ?? []).map((opt, i) => {
+            const isOut = !revealed && eliminated.has(i);
             let cls = "border-slate-200 hover:border-indigo-400 hover:bg-indigo-50";
             if (revealed) {
               if (i === q.answer) cls = "border-emerald-500 bg-emerald-50";
               else if (i === selected) cls = "border-rose-400 bg-rose-50";
               else cls = "border-slate-200 opacity-60";
+            } else if (isOut) {
+              cls = "border-slate-100 bg-slate-50 opacity-40";
             }
             return (
               <button
                 key={i}
                 onClick={() => choose(i)}
-                disabled={revealed}
+                disabled={revealed || isOut}
                 className={`block w-full rounded-xl border-2 px-4 py-3 text-left transition ${cls}`}
               >
                 <span className="mr-2 font-bold text-slate-400">({LETTERS[i]})</span>
-                <span className="qhtml" dangerouslySetInnerHTML={{ __html: opt }} />
+                <span className={`qhtml ${isOut ? "line-through" : ""}`} dangerouslySetInnerHTML={{ __html: opt }} />
               </button>
             );
           })}
