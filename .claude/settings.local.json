@@ -24,7 +24,10 @@
       "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State,OwningProcess; Write-Host \"---IP---\"; \\(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notmatch \"Loopback\"}\\) | Select-Object IPAddress,InterfaceAlias)",
       "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notmatch \"^127\\\\.|^169\\\\.\"} | Select-Object IPAddress,InterfaceAlias | Format-Table -AutoSize)",
       "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://192.168.8.173:3000/login\" -UseBasicParsing -TimeoutSec 5; \"OK: $\\($r.StatusCode\\)\" } catch { \"FAIL: $\\($_.Exception.Message\\)\" })",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }
