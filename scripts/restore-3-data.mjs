@@ -50,6 +50,19 @@ const TABLE_ORDER = [
 
 const client = new pg.Client({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
 await client.connect();
+
+// 查詢每張表各欄位的實際型別:jsonb/json 欄位要先 JSON.stringify() 才能塞值,
+// 陣列型(text[] 等,information_schema 顯示為 'ARRAY')則保持原生 JS 陣列(node-pg 會自動處理)。
+const typeRes = await client.query(
+  `select table_name, column_name, data_type from information_schema.columns
+   where table_schema = 'public' and table_name = any($1::text[])`,
+  [TABLE_ORDER]
+);
+const colTypes = {}; // { table: { column: data_type } }
+for (const r of typeRes.rows) {
+  (colTypes[r.table_name] ??= {})[r.column_name] = r.data_type;
+}
+
 await client.query("SET session_replication_role = replica;"); // 停用觸發器與 FK 觸發檢查
 console.log("已連線,觸發器已暫停(session_replication_role=replica)。\n");
 
@@ -61,11 +74,18 @@ for (const table of TABLE_ORDER) {
   if (rows.length === 0) { console.log(`⏭️  ${table}: 0 筆,跳過`); continue; }
 
   const cols = Object.keys(rows[0]);
+  const types = colTypes[table] ?? {};
   const colList = cols.map((c) => `"${c}"`).join(",");
   const isProfiles = table === "profiles";
   const conflictClause = isProfiles
     ? `ON CONFLICT (id) DO UPDATE SET ${cols.filter((c) => c !== "id").map((c) => `"${c}"=excluded."${c}"`).join(",")}`
     : "ON CONFLICT DO NOTHING";
+
+  // 塞值前依欄位型別序列化(jsonb/json 欄位要先轉成 JSON 字串,其餘保持原樣)
+  function serialize(col, v) {
+    if (v !== null && (types[col] === "jsonb" || types[col] === "json")) return JSON.stringify(v);
+    return v;
+  }
 
   let inserted = 0;
   for (let i = 0; i < rows.length; i += BATCH) {
@@ -73,13 +93,15 @@ for (const table of TABLE_ORDER) {
     const values = [];
     const placeholders = batch.map((row, ri) => {
       const base = ri * cols.length;
-      values.push(...cols.map((c) => row[c] ?? null));
+      values.push(...cols.map((c) => serialize(c, row[c] ?? null)));
       return `(${cols.map((_, ci) => `$${base + ci + 1}`).join(",")})`;
     }).join(",");
-    const sql = `insert into public.${table} (${colList}) values ${placeholders} ${conflictClause}`;
+    // OVERRIDING SYSTEM VALUE:表若有 GENERATED ALWAYS AS IDENTITY 的 id 欄位,
+    // 沒有這個子句就不准塞自訂值;沒有 identity 欄位的表加這句沒有副作用。
+    const sql = `insert into public.${table} (${colList}) overriding system value values ${placeholders} ${conflictClause}`;
     try {
-      await client.query(sql, values);
-      inserted += batch.length;
+      const res = await client.query(sql, values);
+      inserted += res.rowCount;
     } catch (e) {
       console.log(`  ❌ ${table} batch ${i}-${i + batch.length}: ${e.message}`);
     }

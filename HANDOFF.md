@@ -1,16 +1,36 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-06-14
+> **最後更新**:2026-07-14
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
+**⚠️ 2026-07-14 剛完成整個系統搬遷到新帳號,以下是最新狀態,舊資訊已作廢:**
+
+- **Supabase 專案已搬遷**:從舊帳號的「CAP」(`bghglvfbyhfjuvgyzyzy`)搬到 **`storynow03-cloud` 帳號**的新專案「CAP」
+  (`lwdziaamuygqfgfcmffd`,ap-northeast-2 Seoul)。`web/.env.local` **已經改指向新專案**,搬遷已用
+  `scripts/restore-5-verify.mjs` 驗證 25 張表筆數全部一致(81,192 筆)、登入/RLS 都已實測正常。
+  舊專案還在,尚未刪除,純備用。
+  - 新專案的 6 個帳號**密碼已重設**(舊密碼沒有搬過去),新密碼清單在
+    `D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(**這份還沒讓家人知道新密碼前不要刪**)。
+  - 完整搬遷細節、還會用到的還原腳本說明,見本檔「11. 資料庫搬遷紀錄」。
+- **GitHub**:新的 private repo 是 **`github.com/storynow03-cloud/CAP`**(原本帳號 `storynow01-arch` 已被加為
+  collaborator、有 write 權限)。本機 repo 已加 `origin` remote 指向這裡。
+  - **⚠️ 尚未 push 成功**——`git push` 被 Claude Code 的自動安全機制擋下(判定「session 內新增 remote 後
+    立刻整批推送」為潛在外洩風險,是硬性攔截,無法用對話同意繞過)。**使用者需要自己在終端機執行**:
+    ```
+    cd "D:\Claude\國中會考"
+    git push -u origin main
+    git push -u origin feature/gamification
+    ```
+    push 完之後這條待辦才算完成,請新對話開頭先確認使用者是否已經 push。
 - **題庫轉換**:✅ 已全部完成(1039/1039),數學/自然圖片版題目已匯入。數學可用 8,597 題、自然 8,873 題。
-- **正式版伺服器**:目前用 `npx next start -H 0.0.0.0 -p 3000`(正式版,非開發模式)在跑,給家人從 `http://192.168.8.171:3000` 測試。
+- **正式版伺服器**:目前用 `npx next start -H 0.0.0.0 -p 3000`(正式版,非開發模式)在跑,給家人從
+  `http://192.168.8.171:3000` 測試。**注意:.env.local 換了新專案,伺服器要重啟才會用新的連線**。
   - 改完程式要 `cd web; npm run build` 再重啟 next start 家人才看得到。
   - **新增 public/qimg 圖片後,next start 必須重啟**才會服務到新圖。
   - 使用者要自己改程式即時預覽時,改用 `npm run dev`(但 dev 模式手機/別人裝置常掛,只適合自己開發機)。
-- **git**:本地 `feature/gamification` 分支,已 commit(尚未連 GitHub)。
+- **git**:本地在 `feature/gamification` 分支,已 commit,**remote 已設定但還沒 push 成功**(見上)。
 - 背景監看器在對話結束後會停止;若有未跑完的事(如轉換)需手動接手。
 
 ---
@@ -80,10 +100,14 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 6. 測試帳號(已建,免信箱驗證)
 
-| 角色 | Email | 密碼 |
+**⚠️ 2026-07-14 搬遷新專案後,以下密碼是舊的、已失效!** 新專案的 6 個帳號密碼在
+`D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(student@test.com / admin@test.com 也在裡面,
+都被重設過)。這裡的表格保留只是給還在用舊 Supabase 專案的情境參考。
+
+| 角色 | Email | 舊專案密碼(已失效) |
 |------|-------|------|
-| 學生 | `student@test.com` | `test1234` |
-| 管理者(家長) | `admin@test.com` | `admin1234` |
+| 學生 | `student@test.com` | ~~`test1234`~~ |
+| 管理者(家長) | `admin@test.com` | ~~`admin1234`~~ |
 
 啟動:`cd web && npm run dev` → http://localhost:3000
 
@@ -200,8 +224,65 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 ### 開新對話怎麼說
 「讀 HANDOFF.md,做 9.5 的遊戲化經濟系統,從 #三 商城 DB 化開始」。
 
+## 11. 資料庫搬遷紀錄(2026-07-14,舊帳號 → storynow03-cloud 帳號)
+
+使用者要把整個系統(GitHub + Supabase)搬到他另一個帳號 `storynow03-cloud`。過程與結果記錄如下,
+之後若要再搬一次(例如搬第三個帳號),直接照這套流程走一次即可。
+
+### 新環境資訊
+- **GitHub**:`github.com/storynow03-cloud/CAP`(private),`storynow01-arch` 已是 collaborator(write)。
+- **Supabase**:專案「CAP」,ref `lwdziaamuygqfgfcmffd`,region ap-northeast-2(Seoul),
+  跟舊專案同區。**這個新帳號沒有連在目前對話用的 Supabase MCP 工具上**(MCP 是綁舊帳號的組織),
+  所以新專案的一切操作都是**直接用 `pg` 套件連 DB 密碼**或**呼叫 REST/Admin API 用 service_role key**做的,
+  不是用 `mcp__ce4e...__*` 那些工具。
+- 連線注意:新專案的**直連網址 `db.<ref>.supabase.co` 連不上**(現在的 Supabase 專案預設直連常常只吃 IPv6,
+  一般網路環境會 `ENOTFOUND`)。**要用 Session Pooler 連線字串**(Dashboard 右上角 Connect 按鈕 → Direct 分頁 →
+  Connection Method 選 Session pooler → Type: URI),格式是
+  `postgresql://postgres.<ref>:<密碼>@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres`。
+
+### 用到的工具鏈(`scripts/backup-db.mjs` + `scripts/restore-*.mjs`,都已 commit)
+1. `backup-db.mjs`:從舊專案分頁匯出全部 25 張表(REST API + service_role key)+ 下載 storage 檔案,
+   輸出到 git 倉庫外的 `D:\Claude\國中會考-DB備份\<日期>\`(**這資料夾故意不進 git**,含題庫全文跟使用者資料)。
+2. `restore-1-schema.mjs`:用 `pg` 套件連 DB 密碼,依序把 24 個 migration 當 DDL 直接執行到新專案。
+3. `restore-2-users.mjs`:用新專案 Admin API 重建帳號(**新密碼**,不搬舊密碼雜湊——這是使用者明確選的方案,
+   因為匯出密碼雜湊這個動作本身被 Claude Code 的安全機制擋下,判定為敏感憑證外洩風險,需要使用者額外明確同意
+   才會做,這次沒有做)。輸出 `id-map.json`(舊UUID→新UUID)。
+4. `restore-3-data.mjs`:把 25 張表資料灌回新專案,關鍵處理:
+   - `session_replication_role = replica` 停用觸發器,避免「重播」歷史 attempts 時 `on_attempt_gamify`
+     又重新疊加一次 XP/金幣(這張表已經是最終累積值,不能再被觸發器加一次)。
+   - 所有 UUID 欄位用 id-map 自動從舊帳號換成新帳號。
+   - `profiles` 用 UPSERT(ON CONFLICT DO UPDATE),因為 Admin API 建帳號時 `handle_new_user` 觸發器
+     已經建了一筆預設值的 profiles(那次走 GoTrue 自己的連線,不受這支腳本的 replica 模式影響)。
+   - jsonb 欄位(`questions.options`、`mastery.recent`)要先 `JSON.stringify()`,陣列型(`text[]`)保持原生 JS 陣列
+     ——這是實際遇到的 bug,已修好(改成先查 `information_schema.columns` 動態判斷)。
+   - `id bigint generated always as identity` 的表要加 `OVERRIDING SYSTEM VALUE` 才准塞自訂 id 值
+     ——也是實際遇到的 bug,已修好。
+5. `restore-4-storage.mjs`:上傳 storage 檔案(avatars/pet-images),路徑裡的舊 UUID 也換成新 UUID。
+6. `restore-5-verify.mjs`:逐表比對筆數,**已跑過確認全部 25 張表、81,192 筆資料一致**。
+
+### 實際遇到並修好的問題(下次搬遷會直接遇到,先知道)
+1. **`shop_categories` 重複列**:因為 migration 本身有 seed 語法(`insert ... where not exists(...)`),
+   套用 schema(步驟2)時就已經塞了幾筆預設分類;接著資料還原(步驟4)又把備份的同名分類用不同 id 插進去,
+   造成 `nameplate`、`booster` 各重複一筆。**手動 DELETE 掉 migration seed 產生的孤兒列**(用
+   `shop_items.category_id` 實際引用哪個 id 反查出哪筆是孤兒)解決。`shop_items`/`pet_defs` 因為有
+   `unique(key)` 約束,`ON CONFLICT DO NOTHING` 有正確擋下沒有重複。**若下次再搬一次,建議 restore-3-data.mjs
+   跑完後順手查一次這三張表有沒有重複**(用 `group by key/type having count(*)>1`)。
+2. **`permission denied for table xxx`**:因為 schema 是直接用 `pg` 連線跑 DDL 建的,略過了 Supabase 平台
+   自己在你用 Dashboard/CLI 建表時會自動附加的權限授予(`GRANT ... TO anon, authenticated, service_role`)。
+   **這個 GRANT 語句因為範圍較大(對 anon/authenticated 整批授權),被安全機制擋下不給我自動執行**,
+   最後是**使用者自己在 Supabase SQL Editor 貼上執行**解決的。SQL 內容見 git log 或直接問我(不重複貼在這裡
+   因為裡面沒有敏感資訊,純粹是版面考量)。**下次搬遷第 1 步套完 schema 後,建議直接主動請使用者跑這段
+   GRANT SQL,不用等到後面才發現權限錯誤。**
+
+### 還沒做的(下一步待辦,見上方「🔴 新對話第一件事」)
+- **`git push` 尚未成功**(被安全機制擋下,需使用者自己在終端機執行,見開頭說明)。
+- 新密碼還沒通知家人(`new-passwords.txt`)。
+- 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
+- 正式版伺服器(`next start`)還沒用新 `.env.local` 重啟過,家人現在連線可能還是打到舊專案的殘留 process。
+
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-07-14:**搬遷到 storynow03-cloud 帳號(GitHub + Supabase)完成大半,詳見「11. 資料庫搬遷紀錄」**。GitHub repo `storynow03-cloud/CAP` 建好、collaborator 已接受邀請、本機已加 remote,**但 push 被安全機制擋下,需使用者自己執行**(見檔案開頭)。Supabase 新專案 schema+資料+storage 全部搬完並用 `restore-5-verify.mjs` 驗證 25 張表、81,192 筆資料一致;登入與 RLS 都已實測正常(小霏帳號讀回 XP 466/金幣 1128 正確)。過程修好兩個真 bug(jsonb 欄位序列化、identity 欄位插入)+ 一個資料重複問題(shop_categories)+ 一個權限問題(直連 pg 建表跳過了 Supabase 平台自動 GRANT,使用者自己在 SQL Editor 補跑)。`web/.env.local` 已切換到新專案。5 支還原腳本(`restore-1~5`)+ 1 支備份腳本皆已 commit。**下一步:使用者 push git、通知家人新密碼、重啟正式版伺服器、確認舊專案要不要停用。**
 - 2026-07-13(續):**資料庫完整備份**。使用者要把 Supabase 資料庫搬到他另一個帳號的新專案,先做本地備份。新增 `scripts/backup-db.mjs`(已 commit,可重複執行);備份實際輸出在 **git 倉庫外** 的 `D:\Claude\國中會考-DB備份\2026-07-13\`(24 個 migration schema、25 張表共 81,192 筆資料、storage 3 個檔案,共 91MB,25 個 JSON 皆驗證可解析)。**auth.users 的密碼雜湊/token 被安全機制擋下未匯出**(只匯出 email/暱稱/UUID 等安全 metadata),還原新專案時帳號密碼需重設,或使用者明確要求才另外處理雜湊匯出。備份資料夾內有 README.md 附完整還原步驟。下次若要接著搬遷新專案,先讀那份 README。
 - 2026-07-13:**經濟系統深度優化 + 秘境(詳見 7.7)**。使用者提 6 點回饋(加成要標科目、傳說夥伴階段特效要更華麗、取消自訂上傳夥伴、非經典皆付費、新增瑪莉歐×5+柯南×5、取消技能改在夥伴上設加成)+ 要求以資深遊戲設計角度分析金幣平衡並處理三風險(前期牆/弱勢學生太慢/金幣無功能出口)。三支新 migration(`20260617000000_economy_depth.sql`、`boosters.sql`、`realms.sql`)已套用:每日簽到、升級/好感度里程碑/成就/錯題克服皆給獎、消耗道具(加倍卡/提示券)、秘境(限時個人/團體任務,回應「家長懸賞應限時可團體」的需求)。管理後台重整為 `/admin` 統一 hub(帳號/商城/夥伴/秘境四張卡),`/admin/shop` 商品類型補齊先前遺漏的 nameplate/title/booster。**婉拒手繪瑪莉歐/柯南**(即使 Q 版仍屬重製受版權角色),10 隻改 emoji 佔位待管理者上傳授權圖。`npm run build` 全綠(31 routes);新測試腳本 `scripts/test-economy-depth.mjs` 24/24 通過(含修正一個 plpgsql OUT 參數與欄位同名的 ambiguous column bug)。**使用者要求本輪不測試,下次對話應優先做真人瀏覽器驗證。**
 - 2026-06-16(續9):**加成統一(資料單一來源)+ 多項調整**。migration `20260616090000_pet_bonus_unify.sql`(已套用)。移除寫死好感度技能、改吃 pet_defs 每隻加成 + bonus_subjects 考科限定;/admin/pets 加考科複選、加成適用任何夥伴;寶可夢 500、新增瑪莉歐/柯南各 5(500,emoji 佔位待換圖);移除自訂上傳;傳說進化圖鑑特效分階升級。build 通過;科目限定加成 + 技能移除 E2E 全綠。
