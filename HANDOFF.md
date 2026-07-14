@@ -5,7 +5,7 @@
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
-**⚠️ 2026-07-14 剛完成整個系統搬遷到新帳號,以下是最新狀態,舊資訊已作廢:**
+**⚠️ 2026-07-14 系統搬遷到新帳號 + push + 重啟伺服器都已完成,以下是最新狀態,舊資訊已作廢:**
 
 - **Supabase 專案已搬遷**:從舊帳號的「CAP」(`bghglvfbyhfjuvgyzyzy`)搬到 **`storynow03-cloud` 帳號**的新專案「CAP」
   (`lwdziaamuygqfgfcmffd`,ap-northeast-2 Seoul)。`web/.env.local` **已經改指向新專案**,搬遷已用
@@ -15,23 +15,25 @@
     `D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(**這份還沒讓家人知道新密碼前不要刪**)。
   - 完整搬遷細節、還會用到的還原腳本說明,見本檔「11. 資料庫搬遷紀錄」。
 - **GitHub**:新的 private repo 是 **`github.com/storynow03-cloud/CAP`**(原本帳號 `storynow01-arch` 已被加為
-  collaborator、有 write 權限)。本機 repo 已加 `origin` remote 指向這裡。
-  - **⚠️ 尚未 push 成功**——`git push` 被 Claude Code 的自動安全機制擋下(判定「session 內新增 remote 後
-    立刻整批推送」為潛在外洩風險,是硬性攔截,無法用對話同意繞過)。**使用者需要自己在終端機執行**:
-    ```
-    cd "D:\Claude\國中會考"
-    git push -u origin main
-    git push -u origin feature/gamification
-    ```
-    push 完之後這條待辦才算完成,請新對話開頭先確認使用者是否已經 push。
+  collaborator、有 write 權限)。✅ **已於 2026-07-14 成功 push**:`main` 與 `feature/gamification` 兩個分支都已推上去,
+  local 兩個分支都已設定 tracking(`-u origin`)。
 - **題庫轉換**:✅ 已全部完成(1039/1039),數學/自然圖片版題目已匯入。數學可用 8,597 題、自然 8,873 題。
-- **正式版伺服器**:目前用 `npx next start -H 0.0.0.0 -p 3000`(正式版,非開發模式)在跑,給家人從
-  `http://192.168.8.171:3000` 測試。**注意:.env.local 換了新專案,伺服器要重啟才會用新的連線**。
+- **正式版伺服器**:✅ 2026-07-14 已用**新 `.env.local`** 重新 `npm run build` + `npx next start -H 0.0.0.0 -p 3000` 啟動
+  (PID 由 Windows 管理,非本次對話工具管理的背景程序,對話結束後仍會繼續跑)。
+  - **⚠️ 區網 IP 換了!** 原本 HANDOFF 記載的 `192.168.8.171` 已失效,**目前機器的區網 IP 是 `192.168.8.173`**
+    (家用路由器 DHCP 重新分配)。家人現在要連 `http://192.168.8.173:3000`。**IP 是動態的,若下次又連不上,
+    先用 PowerShell `Get-NetIPAddress -AddressFamily IPv4` 確認目前 IP,不要假設沒變。**
   - 改完程式要 `cd web; npm run build` 再重啟 next start 家人才看得到。
   - **新增 public/qimg 圖片後,next start 必須重啟**才會服務到新圖。
   - 使用者要自己改程式即時預覽時,改用 `npm run dev`(但 dev 模式手機/別人裝置常掛,只適合自己開發機)。
-- **git**:本地在 `feature/gamification` 分支,已 commit,**remote 已設定但還沒 push 成功**(見上)。
+- **git**:本地在 `feature/gamification` 分支,已 commit,**已成功 push**(見上)。
 - 背景監看器在對話結束後會停止;若有未跑完的事(如轉換)需手動接手。
+
+### 還沒做的(下次接續)
+- 新密碼還沒通知家人(`D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`)。
+- 讓孩子/家人真實使用幾天收集回饋(最高優先,尚未開始,提醒家人用新 IP `192.168.8.173:3000`)。
+- 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
+- 合併 feature/gamification → main(等真人測試回饋後再做,見 9.5 以下待辦)。
 
 ---
 
@@ -274,14 +276,20 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
    因為裡面沒有敏感資訊,純粹是版面考量)。**下次搬遷第 1 步套完 schema 後,建議直接主動請使用者跑這段
    GRANT SQL,不用等到後面才發現權限錯誤。**
 
-### 還沒做的(下一步待辦,見上方「🔴 新對話第一件事」)
-- **`git push` 尚未成功**(被安全機制擋下,需使用者自己在終端機執行,見開頭說明)。
+### 還沒做的(2026-07-14 已補完 push + 重啟伺服器,見上方「🔴 新對話第一件事」)
+- ✅ `git push` 已完成(main + feature/gamification 都推上去了)。
+- ✅ 正式版伺服器已用新 `.env.local` 重啟(注意區網 IP 換成 `192.168.8.173`)。
 - 新密碼還沒通知家人(`new-passwords.txt`)。
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
-- 正式版伺服器(`next start`)還沒用新 `.env.local` 重啟過,家人現在連線可能還是打到舊專案的殘留 process。
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-07-14(續二):**完成搬遷收尾:git push + 重啟正式版伺服器**。`git push -u origin main` 與
+  `git push -u origin feature/gamification` 都成功推到 `storynow03-cloud/CAP`(上次被安全機制擋下,本次使用者在
+  對話中明確同意後直接執行成功)。`cd web && npm run build`(31 routes 全綠)後用新 `.env.local` 重啟
+  `npx next start -H 0.0.0.0 -p 3000`,`curl localhost:3000/login` 200 OK。**意外發現機器的區網 IP 從
+  `192.168.8.171` 變成 `192.168.8.173`**(DHCP 重新分配,跟 Supabase 搬遷無關),已更新 HANDOFF 開頭提醒,
+  否則家人會照舊 IP 連不上。下一步:通知家人新密碼 + 新 IP,開始真人測試收集回饋。
 - 2026-07-14:**搬遷到 storynow03-cloud 帳號(GitHub + Supabase)完成大半,詳見「11. 資料庫搬遷紀錄」**。GitHub repo `storynow03-cloud/CAP` 建好、collaborator 已接受邀請、本機已加 remote,**但 push 被安全機制擋下,需使用者自己執行**(見檔案開頭)。Supabase 新專案 schema+資料+storage 全部搬完並用 `restore-5-verify.mjs` 驗證 25 張表、81,192 筆資料一致;登入與 RLS 都已實測正常(小霏帳號讀回 XP 466/金幣 1128 正確)。過程修好兩個真 bug(jsonb 欄位序列化、identity 欄位插入)+ 一個資料重複問題(shop_categories)+ 一個權限問題(直連 pg 建表跳過了 Supabase 平台自動 GRANT,使用者自己在 SQL Editor 補跑)。`web/.env.local` 已切換到新專案。5 支還原腳本(`restore-1~5`)+ 1 支備份腳本皆已 commit。**下一步:使用者 push git、通知家人新密碼、重啟正式版伺服器、確認舊專案要不要停用。**
 - 2026-07-13(續):**資料庫完整備份**。使用者要把 Supabase 資料庫搬到他另一個帳號的新專案,先做本地備份。新增 `scripts/backup-db.mjs`(已 commit,可重複執行);備份實際輸出在 **git 倉庫外** 的 `D:\Claude\國中會考-DB備份\2026-07-13\`(24 個 migration schema、25 張表共 81,192 筆資料、storage 3 個檔案,共 91MB,25 個 JSON 皆驗證可解析)。**auth.users 的密碼雜湊/token 被安全機制擋下未匯出**(只匯出 email/暱稱/UUID 等安全 metadata),還原新專案時帳號密碼需重設,或使用者明確要求才另外處理雜湊匯出。備份資料夾內有 README.md 附完整還原步驟。下次若要接著搬遷新專案,先讀那份 README。
 - 2026-07-13:**經濟系統深度優化 + 秘境(詳見 7.7)**。使用者提 6 點回饋(加成要標科目、傳說夥伴階段特效要更華麗、取消自訂上傳夥伴、非經典皆付費、新增瑪莉歐×5+柯南×5、取消技能改在夥伴上設加成)+ 要求以資深遊戲設計角度分析金幣平衡並處理三風險(前期牆/弱勢學生太慢/金幣無功能出口)。三支新 migration(`20260617000000_economy_depth.sql`、`boosters.sql`、`realms.sql`)已套用:每日簽到、升級/好感度里程碑/成就/錯題克服皆給獎、消耗道具(加倍卡/提示券)、秘境(限時個人/團體任務,回應「家長懸賞應限時可團體」的需求)。管理後台重整為 `/admin` 統一 hub(帳號/商城/夥伴/秘境四張卡),`/admin/shop` 商品類型補齊先前遺漏的 nameplate/title/booster。**婉拒手繪瑪莉歐/柯南**(即使 Q 版仍屬重製受版權角色),10 隻改 emoji 佔位待管理者上傳授權圖。`npm run build` 全綠(31 routes);新測試腳本 `scripts/test-economy-depth.mjs` 24/24 通過(含修正一個 plpgsql OUT 參數與欄位同名的 ambiguous column bug)。**使用者要求本輪不測試,下次對話應優先做真人瀏覽器驗證。**

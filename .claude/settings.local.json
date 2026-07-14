@@ -9,7 +9,22 @@
       "PowerShell(npm --version)",
       "PowerShell($p = \"D:\\\\Claude\\\\國中會考\\\\scripts\\\\extract-docs.ps1\"; $c = [IO.File]::ReadAllText\\($p, [Text.Encoding]::UTF8\\); [IO.File]::WriteAllText\\($p, $c, \\(New-Object Text.UTF8Encoding\\($true\\)\\)\\); Write-Output \"converted to UTF-8 BOM\")",
       "mcp__ce4e8d25-a9f9-4de3-9902-e298560bfd74__apply_migration",
-      "PowerShell(Get-ChildItem \"D:\\\\Claude\\\\國中會考\\\\web\\\\node_modules\\\\next\\\\dist\\\\docs\" | Select-Object -ExpandProperty Name; \\(Get-Content \"D:\\\\Claude\\\\國中會考\\\\web\\\\package.json\" | ConvertFrom-Json\\).dependencies)"
+      "PowerShell(Get-ChildItem \"D:\\\\Claude\\\\國中會考\\\\web\\\\node_modules\\\\next\\\\dist\\\\docs\" | Select-Object -ExpandProperty Name; \\(Get-Content \"D:\\\\Claude\\\\國中會考\\\\web\\\\package.json\" | ConvertFrom-Json\\).dependencies)",
+      "Bash(git ls-remote *)",
+      "Bash(git fetch *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(netstat -ano)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://192.168.8.171:3000/login)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://192.168.8.171:3000/login\" -UseBasicParsing -TimeoutSec 5; $r.StatusCode } catch { $_.Exception.Message })",
+      "PowerShell(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State,OwningProcess; Write-Host \"---IP---\"; \\(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notmatch \"Loopback\"}\\) | Select-Object IPAddress,InterfaceAlias)",
+      "PowerShell(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notmatch \"^127\\\\.|^169\\\\.\"} | Select-Object IPAddress,InterfaceAlias | Format-Table -AutoSize)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://192.168.8.173:3000/login\" -UseBasicParsing -TimeoutSec 5; \"OK: $\\($r.StatusCode\\)\" } catch { \"FAIL: $\\($_.Exception.Message\\)\" })",
+      "Bash(git add *)"
     ]
   }
 }
