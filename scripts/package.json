@@ -1,0 +1,9 @@
+{
+  "name": "cap-scripts",
+  "private": true,
+  "type": "module",
+  "description": "獨立於 web/ 之外的維運腳本(題庫轉換、遊戲化測試、資料庫備份/搬遷)。故意不跟 web/ 共用 package.json,避免把 pg 這類後端限定套件混進 Next.js app 的相依。",
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}
