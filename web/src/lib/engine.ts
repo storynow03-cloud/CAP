@@ -29,6 +29,28 @@ export async function pickPracticeQuestions(
   return shuffle(data ?? []).slice(0, opts.count);
 }
 
+/** 非選題(紙上作答 → 看詳解 → 自評)選題 */
+export async function pickWrittenQuestions(
+  supabase: SupabaseClient,
+  opts: { subject: string; topic?: string; difficulty?: number; count: number }
+): Promise<Question[]> {
+  // 非選題沒有選項,必須至少有參考答案才能自評對錯
+  let q = supabase
+    .from("questions")
+    .select("*")
+    .eq("subject", opts.subject)
+    .eq("needs_review", false)
+    .neq("type", "single_choice")
+    .not("answer_text", "is", null)
+    .neq("answer_text", "")
+    .limit(500);
+  if (opts.topic) q = q.eq("topic", opts.topic);
+  if (opts.difficulty) q = q.eq("difficulty", opts.difficulty);
+  const { data, error } = await q;
+  if (error) throw error;
+  return shuffle(data ?? []).slice(0, opts.count);
+}
+
 /**
  * 分階挑戰選題(核心):
  * 1. 錯題複習最多 3 題(到期的)
@@ -185,7 +207,7 @@ export async function recordAnswer(
   mode: "practice" | "challenge" | "exam" | "review",
   timeSpentMs: number
 ): Promise<{ levelUp?: number; levelDown?: number }> {
-  await supabase.from("attempts").insert({
+  const { error: attemptErr } = await supabase.from("attempts").insert({
     user_id: userId,
     question_id: q.id,
     selected,
@@ -193,6 +215,10 @@ export async function recordAnswer(
     time_spent_ms: timeSpentMs,
     mode,
   });
+  // 作答沒記錄成功等於整個學習歷程都失真,不要靜默吞掉(這個錯誤曾因為被吞掉而讓
+  // 搬遷後「序列沒推進、主鍵衝突」的 bug 潛伏很久沒被發現)。這裡只記錄不 throw,
+  // 因為呼叫端(Quiz / WrittenQuiz)沒有 try/catch,throw 會讓畫面卡住。
+  if (attemptErr) console.error("[recordAnswer] attempts insert 失敗:", attemptErr.message);
 
   // 每日統計
   const today = new Date().toISOString().slice(0, 10);

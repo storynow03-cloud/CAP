@@ -1,39 +1,48 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-07-14
+> **最後更新**:2026-07-15
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
-**⚠️ 2026-07-14 系統搬遷到新帳號 + push + 重啟伺服器都已完成,以下是最新狀態,舊資訊已作廢:**
+**⚠️ 2026-07-14 搬遷 + push + Vercel 上線 + 密碼重設全部完成,以下是最新狀態,舊資訊已作廢:**
 
 - **Supabase 專案已搬遷**:從舊帳號的「CAP」(`bghglvfbyhfjuvgyzyzy`)搬到 **`storynow03-cloud` 帳號**的新專案「CAP」
   (`lwdziaamuygqfgfcmffd`,ap-northeast-2 Seoul)。`web/.env.local` **已經改指向新專案**,搬遷已用
   `scripts/restore-5-verify.mjs` 驗證 25 張表筆數全部一致(81,192 筆)、登入/RLS 都已實測正常。
   舊專案還在,尚未刪除,純備用。
-  - 新專案的 6 個帳號**密碼已重設**(舊密碼沒有搬過去),新密碼清單在
-    `D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(**這份還沒讓家人知道新密碼前不要刪**)。
+  - ✅ **6 個帳號密碼已統一改成 `111111`**(方便家人測試,清單在
+    `D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`)。**正式讓孩子長期用之前建議換更安全的密碼。**
   - 完整搬遷細節、還會用到的還原腳本說明,見本檔「11. 資料庫搬遷紀錄」。
 - **GitHub**:新的 private repo 是 **`github.com/storynow03-cloud/CAP`**(原本帳號 `storynow01-arch` 已被加為
-  collaborator、有 write 權限)。✅ **已於 2026-07-14 成功 push**:`main` 與 `feature/gamification` 兩個分支都已推上去,
-  local 兩個分支都已設定 tracking(`-u origin`)。
+  collaborator、有 write 權限)。✅ **`main` 與 `feature/gamification` 都已 push,且 `feature/gamification` 已
+  fast-forward 合併進 `main`**——現在 `main` 就是最新完整版,兩分支內容相同。之後**直接在 main 開發、push 到
+  main 即可**,不用再管理 feature 分支合併的事。
+- **Vercel 部署**:✅ **已成功上線**,網址 `cap-jessie5414.vercel.app`(Hobby 方案,帳號 `storynow03-cloud`)。
+  - 中間卡過一次 **`404: NOT_FOUND`**,原因是 Project Settings 的 **Framework Preset 卡在「Other」**(改了 Root
+    Directory=`web` 之後沒有自動重新偵測成 Next.js),手動改成 Next.js + Redeploy 後解決。**若之後又看到整站
+    404,先查這個設定。**
+  - 部署會自動接 GitHub `main` 分支——**之後只要 `git push` 到 main,Vercel 就會自動重新部署**,不用手動點 Redeploy。
+  - 環境變數已設定 3 個(`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SECRET_KEY`),對應
+    的是新 Supabase 專案。
 - **題庫轉換**:✅ 已全部完成(1039/1039),數學/自然圖片版題目已匯入。數學可用 8,597 題、自然 8,873 題。
-- **正式版伺服器**:✅ 2026-07-14 已用**新 `.env.local`** 重新 `npm run build` + `npx next start -H 0.0.0.0 -p 3000` 啟動
-  (PID 由 Windows 管理,非本次對話工具管理的背景程序,對話結束後仍會繼續跑)。
-  - **⚠️ 區網 IP 換了!** 原本 HANDOFF 記載的 `192.168.8.171` 已失效,**目前機器的區網 IP 是 `192.168.8.173`**
-    (家用路由器 DHCP 重新分配)。家人現在要連 `http://192.168.8.173:3000`。**IP 是動態的,若下次又連不上,
-    先用 PowerShell `Get-NetIPAddress -AddressFamily IPv4` 確認目前 IP,不要假設沒變。**
+- **正式版伺服器(本機,給家人區網測試用)**:✅ 已用新 `.env.local` 重新 build + 啟動 `next start -H 0.0.0.0 -p 3000`。
+  - **⚠️ 區網 IP 換了!** 原本 `192.168.8.171` 已失效,**目前是 `192.168.8.173`**(路由器 DHCP 重新分配)。
+    **IP 是動態的,若下次又連不上,先用 PowerShell `Get-NetIPAddress -AddressFamily IPv4` 確認目前 IP,不要假設沒變。**
+    現在有 Vercel 網址可用之後,家人測試可以優先用 Vercel 網址(不受區網/IP 影響),本機伺服器當備用。
   - 改完程式要 `cd web; npm run build` 再重啟 next start 家人才看得到。
   - **新增 public/qimg 圖片後,next start 必須重啟**才會服務到新圖。
   - 使用者要自己改程式即時預覽時,改用 `npm run dev`(但 dev 模式手機/別人裝置常掛,只適合自己開發機)。
-- **git**:本地在 `feature/gamification` 分支,已 commit,**已成功 push**(見上)。
 - 背景監看器在對話結束後會停止;若有未跑完的事(如轉換)需手動接手。
 
 ### 還沒做的(下次接續)
-- 新密碼還沒通知家人(`D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`)。
-- 讓孩子/家人真實使用幾天收集回饋(最高優先,尚未開始,提醒家人用新 IP `192.168.8.173:3000`)。
+- **⭐ 全系統 A++ 體檢報告出爐,見 `docs/09-A++體檢報告與衝刺路線.md`**——下次要做新功能,先讀這份再動工。
+  重點待辦(依報告的 P0 優先順序):①數學非選練習模式(5,021 題現成資料完全沒用到)②自然會考真題修復
+  (59 題待修)+ 社會詳解補齊(現只有 43%)③全真模擬考(現在每科只考 5 題,估不出真實等級)。
+- 新密碼(`111111`)還沒通知家人。
+- 讓孩子/家人真實使用幾天收集回饋(最高優先,尚未開始;現在有 Vercel 網址 `cap-jessie5414.vercel.app` 可直接給家人用)。
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
-- 合併 feature/gamification → main(等真人測試回饋後再做,見 9.5 以下待辦)。
+- `111111` 是暫時的簡單密碼,家人開始長期使用後應該換成更安全的密碼。
 
 ---
 
@@ -284,6 +293,17 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-07-15:**全系統 A++ 體檢完成,完整報告在 `docs/09-A++體檢報告與衝刺路線.md`(之後要做新功能請先讀它)**。實掃新專案題庫的重點發現:數學可用單選僅 3,576(舊記載 8,597 是含非選的誤導數字);**數學非選 5,021 題可用(有答案有詳解)但 app 完全沒使用**——P0 建議做「自評制非選練習模式」;題組 passage 全庫 0 筆;英聽 0;自然會考真題可用僅 24 題(59 題待修)、自然 D5 難題只有 2 題;社會詳解覆蓋僅 43%;knowledge_code 有 5 萬題資料但完全未用。報告含逐科 A++ 處方(容錯數/題型結構/每日菜單)、平台缺口(全真模考、題組引擎、英聽、知識點診斷、時間壓力訓練)、趣味性升級(難題賞金、Combo、真題挑戰日)與 P0-P2 施工順序表。本輪僅分析未動程式。
+- 2026-07-14(續四):**建立「開工/收工」工作慣例(CLAUDE.md)+ 個人 skill 基礎建設(跟這個專案本身無關,順手記一筆方便理解 CLAUDE.md 為什麼多了一段)**。使用者確認 Vercel 上線、密碼重設完成後,要求把「開工讀交接文件、收工寫回進度日誌」這個習慣固定下來。評估後認為**這個專案自己的規則**(讀哪份文件、依什麼原則)寫進本專案 [CLAUDE.md](CLAUDE.md) 最直接;但「開工/收工」這個口語觸發詞的行為模式想在**所有專案**通用,所以另外用 skill-creator 建了一個使用者層級的 `shift-log` skill(存在 `~/.claude/skills/shift-log`,實際內容版控在新建的 `github.com/storynow01-arch/skill` repo,本機用 junction 接過去,不佔用這個專案的 git 歷史)。過程中使用者要求 review 一份「個人偏好+資安準則」的全域設定草稿,抓出幾個問題(英文切換指令主詞不清、密鑰掃描關鍵字太窄漏抓 PASSWORD/TOKEN/連線字串、跟本專案還原腳本用 CLI 參數傳密碼的既有做法沒對齊)但**還沒實際寫成使用者的全域 CLAUDE.md**(使用者尚未回覆是否要存)。也在 review 自己寫的 shift-log skill 時發現一個真漏洞並補上:收工流程原本沒禁止把真正的密碼/金鑰值寫進交接文件,已加規則明確禁止(只能寫存放位置,不能寫值本身)。**下一步:確認是否要把那份全域設定存進 `~/.claude/CLAUDE.md`(使用者尚未答覆)。**
+- 2026-07-14(續三):**Vercel 正式上線 + 合併分支 + 全部帳號密碼重設為 111111**。
+  `git checkout main && git merge feature/gamification --ff-only` 乾淨合併(main 原本沒有分岔),
+  `main`、`feature/gamification` 都 push 完成,兩分支內容同步。使用者自行操作 Vercel Dashboard 部署,過程中
+  排查出一次 `404: NOT_FOUND`——**根因是 Framework Preset 停在「Other」**(先前只改了 Root Directory=`web`,
+  Vercel 沒有因此自動重新偵測框架),請使用者手動改成 Next.js 並 Redeploy,問題解決,網站正式上線於
+  `cap-jessie5414.vercel.app`。上線後測試登入才發現 `admin@test.com` 用的是搬遷前的舊密碼(搬遷時已重設,
+  使用者原本不知道),查 `new-passwords.txt` 給了新密碼還是想統一改;**使用者要求把 6 個帳號密碼全部改成
+  `111111`**,寫了一支一次性腳本(用 Supabase Admin API `PUT /auth/v1/admin/users/{id}`,未 commit 進 repo,
+  純手動維運操作)全部改完並同步更新 `new-passwords.txt`。**下一步:通知家人新網址 + 密碼 111111,開始真人測試。**
 - 2026-07-14(續二):**完成搬遷收尾:git push + 重啟正式版伺服器**。`git push -u origin main` 與
   `git push -u origin feature/gamification` 都成功推到 `storynow03-cloud/CAP`(上次被安全機制擋下,本次使用者在
   對話中明確同意後直接執行成功)。`cd web && npm run build`(31 routes 全綠)後用新 `.env.local` 重啟

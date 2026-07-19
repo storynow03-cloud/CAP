@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { pickPracticeQuestions } from "@/lib/engine";
+import { pickPracticeQuestions, pickWrittenQuestions } from "@/lib/engine";
 import Quiz from "@/components/Quiz";
+import WrittenQuiz from "@/components/WrittenQuiz";
 import { SUBJECTS, type Question } from "@/lib/types";
 
 export default function PracticePage() {
   const [subject, setSubject] = useState("math");
+  const [format, setFormat] = useState<"choice" | "written">("choice");
   const [topics, setTopics] = useState<string[]>([]);
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState(0);
@@ -36,14 +38,22 @@ export default function PracticePage() {
     setState("loading");
     setError("");
     try {
-      const qs = await pickPracticeQuestions(createClient(), {
+      const opts = {
         subject,
         topic: topic || undefined,
         difficulty: difficulty || undefined,
         count,
-      });
+      };
+      const qs =
+        format === "written"
+          ? await pickWrittenQuestions(createClient(), opts)
+          : await pickPracticeQuestions(createClient(), opts);
       if (!qs.length) {
-        setError("找不到符合條件的題目,換個條件試試。");
+        setError(
+          format === "written"
+            ? "這個條件下沒有非選題(目前非選題最多的是數學)。換科目或放寬條件試試。"
+            : "找不到符合條件的題目,換個條件試試。"
+        );
         setState("setup");
         return;
       }
@@ -56,7 +66,13 @@ export default function PracticePage() {
   }
 
   if (state === "quiz" && userId) {
-    return (
+    return format === "written" ? (
+      <WrittenQuiz
+        questions={questions}
+        userId={userId}
+        onFinish={() => setState("setup")}
+      />
+    ) : (
       <Quiz
         questions={questions}
         userId={userId}
@@ -85,6 +101,31 @@ export default function PracticePage() {
             </button>
           ))}
         </div>
+
+        <label className="mb-2 mt-5 block text-sm font-semibold">題型</label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setFormat("choice")}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+              format === "choice" ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            選擇題
+          </button>
+          <button
+            onClick={() => setFormat("written")}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+              format === "written" ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            ✍️ 非選題(紙上作答)
+          </button>
+        </div>
+        {format === "written" && (
+          <p className="mt-2 text-xs text-slate-500">
+            在紙上寫完整過程 → 翻詳解對照 → 自評對錯。非選題以數學最多(約 5,000 題)。
+          </p>
+        )}
 
         <label className="mb-2 mt-5 block text-sm font-semibold">
           單元(共 {topics.length} 個,不選 = 全部)
