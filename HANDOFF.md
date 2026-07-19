@@ -1,7 +1,7 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-07-15
+> **最後更新**:2026-07-19
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
@@ -18,7 +18,15 @@
   collaborator、有 write 權限)。✅ **`main` 與 `feature/gamification` 都已 push,且 `feature/gamification` 已
   fast-forward 合併進 `main`**——現在 `main` 就是最新完整版,兩分支內容相同。之後**直接在 main 開發、push 到
   main 即可**,不用再管理 feature 分支合併的事。
-- **Vercel 部署**:✅ **已成功上線**,網址 `cap-jessie5414.vercel.app`(Hobby 方案,帳號 `storynow03-cloud`)。
+- **Vercel 部署**:✅ **已上線**(Hobby 方案,帳號 `storynow03-cloud`,專案 `cap`)。
+  - 🔴 **給家人的正式網址是 `https://cap-three-ruddy.vercel.app`**(Vercel Dashboard → Overview → **Domains** 欄位那個)。
+    **舊文件寫的 `cap-jessie5414.vercel.app` 是錯的,那是「部署別名」不是正式 Domain,會被保護擋掉,不要再用。**
+  - **Vercel Deployment Protection 維持「開啟 + Standard Protection」是正確設定,不要關掉。**
+    Standard Protection **只擋 Preview / 帶雜湊的部署網址,不擋正式 Domain**,所以家人用上面那個網址完全正常。
+    - 實測(保護開啟時):`cap-three-ruddy.vercel.app` → **200 ✅**;`cap-jessie5414.vercel.app` → 302 ❌;
+      `cap-8u51867ta-jessie5414.vercel.app`(部署網址)→ 302 ❌。
+    - ⚠️ **教訓**:要判斷「家人連不連得到」,一定要先去 Dashboard 確認 **Domains** 欄位的網址再測,
+      不要拿瀏覽器網址列上隨手複製的網址就下結論(2026-07-19 就是這樣誤判,害使用者白關了一次保護)。
   - 中間卡過一次 **`404: NOT_FOUND`**,原因是 Project Settings 的 **Framework Preset 卡在「Other」**(改了 Root
     Directory=`web` 之後沒有自動重新偵測成 Next.js),手動改成 Next.js + Redeploy 後解決。**若之後又看到整站
     404,先查這個設定。**
@@ -36,13 +44,23 @@
 - 背景監看器在對話結束後會停止;若有未跑完的事(如轉換)需手動接手。
 
 ### 還沒做的(下次接續)
-- **⭐ 全系統 A++ 體檢報告出爐,見 `docs/09-A++體檢報告與衝刺路線.md`**——下次要做新功能,先讀這份再動工。
-  重點待辦(依報告的 P0 優先順序):①數學非選練習模式(5,021 題現成資料完全沒用到)②自然會考真題修復
-  (59 題待修)+ 社會詳解補齊(現只有 43%)③全真模擬考(現在每科只考 5 題,估不出真實等級)。
-- 新密碼(`111111`)還沒通知家人。
-- 讓孩子/家人真實使用幾天收集回饋(最高優先,尚未開始;現在有 Vercel 網址 `cap-jessie5414.vercel.app` 可直接給家人用)。
+- 🥇 **最高優先:讓孩子/家人真的用幾天收集回饋**。兩個 P0 功能已上線可用,網址與帳密都備妥
+  (`https://cap-three-ruddy.vercel.app`,6 個帳號密碼全是 `111111`,清單在
+  `D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`)。**再多做功能不如先拿到真人回饋。**
+- **⚠️ 建議關閉 Supabase 公開註冊**(尚未做,需使用者到 Dashboard 點):
+  目前登入頁的「註冊」是開著的,陌生人知道網址就能自己註冊進來看題庫(題庫有康軒版權)。
+  位置:Supabase → Authentication → Sign In / Providers → 關閉「Allow new users to sign up」。
+  關掉後**家人既有帳號完全不受影響**,之後要加帳號改用 Admin API 建立即可。
+  (注意:Vercel Deployment Protection 擋不住這件事,那是不同層的防護,不能互相取代。)
+- **P0 第三項「資料修復」尚未做,且已確認不宜自動化**(2026-07-19 實查結論,詳見進度日誌):
+  - 自然待修真題 48 題:題幹文字其實完整,但多數是**選項為示意圖、圖沒轉好**。
+    **不可盲目清 `needs_review`**,否則學生會看到選項殘缺的題目,比隱藏更糟。需逐題人工看渲染結果判斷。
+  - 社會詳解缺約 9,700 題:**原始 `social.json` 本身就只有 40% 有詳解**,重新解析補不回來,
+    只能 AI 生成——有成本、需品質審查,是獨立工程。**動工前先問使用者要不要投入、接受多少成本。**
+- `111111` 是暫時的簡單密碼,家人開始長期使用後應該換成各自的密碼。
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
-- `111111` 是暫時的簡單密碼,家人開始長期使用後應該換成更安全的密碼。
+- 報告 `docs/09-A++體檢報告與衝刺路線.md` 的 P1/P2 還沒動:題組引擎、英聽模組、知識點診斷+答錯補刀、
+  時間壓力訓練、難題賞金/Combo/真題挑戰日。要做新功能先讀那份再動工。
 
 ---
 
@@ -109,18 +127,25 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 觸發器:`on_attempt_gamify`(作答自動發 XP/金幣/任務/週XP/夥伴加成/加倍卡/探險/秘境進度,**單一權威加成來源在 pet_defs**)、`on_levelup`(升級發金幣)、`on_wrong_overcome`(錯題克服發獎)、`handle_new_user`(自動建 profile+好友碼)
 全表開 RLS;大會考、商城/夥伴/秘境的寫入只有 role=teacher/parent 能做(staff-only policy + `/api/admin/*` 後端 service key 雙重保護)。
 
-## 6. 測試帳號(已建,免信箱驗證)
+## 6. 帳號(6 個,已建、免信箱驗證)
 
-**⚠️ 2026-07-14 搬遷新專案後,以下密碼是舊的、已失效!** 新專案的 6 個帳號密碼在
-`D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(student@test.com / admin@test.com 也在裡面,
-都被重設過)。這裡的表格保留只是給還在用舊 Supabase 專案的情境參考。
+**目前 6 個帳號密碼全部是 `111111`**(2026-07-14 統一重設,方便家人測試)。完整清單在
+`D:\Claude\國中會考-DB備份\2026-07-13\new-passwords.txt`(**不在 git 裡**)。
+2026-07-19 已用 `student@test.com` 在正式站實測登入成功。
 
-| 角色 | Email | 舊專案密碼(已失效) |
+| 使用者 | Email | 備註 |
 |------|-------|------|
-| 學生 | `student@test.com` | ~~`test1234`~~ |
-| 管理者(家長) | `admin@test.com` | ~~`admin1234`~~ |
+| 小霏(學生) | `student@test.com` | 主要使用者 |
+| 管理員(家長) | `admin@test.com` | 可進 `/admin` 後台 |
+| 努豆先生 | `storynow@gmail.com` | |
+| rita | `rita@gmail.com` | |
+| yufei | `yufei@gmail.com` | |
+| ally | `ally@gmail.com` | |
 
-啟動:`cd web && npm run dev` → http://localhost:3000
+⚠️ `111111` 只是暫時的測試密碼,家人開始長期使用後應換掉。
+
+- **家人使用**:`https://cap-three-ruddy.vercel.app`(正式 Domain,見開頭說明)
+- **本機開發**:`cd web && npm run dev` → http://localhost:3000
 
 ## 7. 已完成功能
 
@@ -129,6 +154,10 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - ✅ 分階挑戰(等級制、排除已精熟、弱點優先、連對自動加深)
 - ✅ 自由練習(科目/單元/難度/題數)
 - ✅ 綜合模擬考(五科各 5 題 + 成績單 A++~C)
+- ✅ **全真模擬考(2026-07-19)**:`/mock-exam` →「全真單科」,依真實會考規格組卷(國42/英41/數25/自54/社63)
+  + 官方作答時間 + **容錯估級**(直接顯示「距 A++ 還差幾題」)。規格表在 `types.ts` 的 `FULL_EXAM_SPEC`。
+- ✅ **數學非選練習模式(2026-07-19)**:`/practice` →「✍️ 非選題」,自評制(紙上作答→翻詳解→自評
+  答對/半對/答錯),半對與答錯進錯題本。元件 `WrittenQuiz.tsx`,選題 `pickWrittenQuestions()`。
 - ✅ 錯題本(間隔複習 1→3→7→14 天)
 - ✅ 學習歷程(雷達圖、每日曲線、弱點排行、作答明細含時間/日期下拉)
 - ✅ 大會考 + 排行榜(管理者出題、全員同卷、名次)
@@ -154,8 +183,11 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - ✅ **經濟系統深度優化 + 秘境(2026-07-13,見 7.7)**:解決「金幣賺太快/太慢」三風險、等級與好感度有實質用途、每日簽到、成就給獎、消耗道具、秘境(限時個人/團體任務)、管理後台重整為統一 hub。
 - 🔜 **待補圖**:瑪莉歐×5、柯南×5 目前是 emoji 佔位,需管理者到 `/admin/pets` 上傳原創或授權圖片(不可用官方角色圖,見 7.7 說明)。
 - ⏳ **UI 視覺打磨**(持續進行中,7.7 已補一輪國中趣味風格,細節仍可再調)。
-- ⏳ 讓孩子/家人真實使用幾天收集回饋(最高優先,本輪尚未測試)。
-- ⏳ 合併 feature/gamification → main → 推 Private GitHub → Vercel(Root Directory=web,填 3 個 Supabase env)。
+- ⏳ 讓孩子/家人真實使用幾天收集回饋(**最高優先,至今仍未做**)。
+- ✅ 合併 feature/gamification → main → 推 GitHub → Vercel 上線(2026-07-14/19 全部完成)。
+- ✅ **P0 兩大功能完成(2026-07-19)**:數學非選練習模式、全真模擬考(見 7. 已完成功能)。
+- 🔜 **P0 第三項「資料修復」未做**(自然真題複檢 / 社會詳解補齊)——已確認不宜自動化,需先決定方向,
+  詳見開頭「還沒做的」。
 - ⏳ 英聽音檔、克漏字題組拆分、115 真題 PDF 轉換、社會科圖片題(比照 LibreOffice 流程)。
 - ⏳(商業化才需)AI 出題管線替換康軒題,見 docs/08。
 
@@ -194,6 +226,15 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 6. **註冊預設要 Email 驗證**(autoconfirm 關),家人自己註冊會卡;且公開 signup 會擋假 email(如 @test.com)。給親友測試最快是用 Admin API 預先建帳號(email_confirm:true),見 scripts 內建帳號的寫法。
 7. `next start` 啟動時鎖定 public 檔清單,**之後新增的 qimg 圖片要重啟 next start 才會服務**。
 8. 本對話的 Claude Preview 預覽工具不穩(伺服器常閃退);驗證改用「REST 測試腳本 + 正式版 HTTP 200 檢查」。
+9. **搬遷/還原資料後,一定要把 identity 序列 setval 到 max(id)**,否則新 insert 全部主鍵衝突。
+   2026-07-19 就是因為這個,搬遷後全系統無法記錄任何作答卻沒人發現。修復腳本:
+   `supabase/migrations/20260719000000_fix_identity_sequences.sql`。
+10. **不要靜默吞掉 Supabase 的 insert/update 錯誤**。`recordAnswer` 原本沒檢查 `error`,讓上面那個 bug
+   潛伏很久(畫面照常前進、看起來一切正常)。至少要 `console.error`。
+11. **判斷 Vercel 網站對外可不可達,先看 Dashboard → Overview → Domains 欄位的網址**。瀏覽器網址列上的
+   可能是「部署別名 / 部署網址」,Standard Protection 會擋它們但**不擋正式 Domain**,拿錯網址測會誤判。
+12. **金鑰不要當命令列參數傳給腳本**(要從 `.env.local` 讀)。Claude Code 權限系統會把執行過的指令原樣
+   記進 `.claude/settings.local.json`,金鑰會跟著被 commit;該檔現已列入 `.gitignore`。
 
 ---
 
@@ -292,6 +333,37 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
 
 ## 📋 進度日誌(每次里程碑往上加一行)
+
+- 2026-07-19:**完成 P0 兩大功能(數學非選、全真模擬考)+ 修好一個讓全系統無法記錄作答的嚴重 bug + 兩個重要教訓**。
+  依 `docs/09` 體檢報告動工,兩項功能都已 push 上線並在**正式 Domain** 實測通過。
+  - **① 數學非選練習模式**(commit `f25cc56`):`/practice` 加「題型:選擇題 / ✍️ 非選題」切換。自評制流程
+    (看題→紙上寫完整過程→翻參考答案+詳解→自評答對/半對/答錯),半對與答錯都進錯題本再練。新增
+    `pickWrittenQuestions()` + `WrittenQuiz.tsx`,**沿用既有 attempts/精熟度/遊戲化管線**
+    (`selected=null`、`mode='practice'`,因為 attempts.mode 有 CHECK 限制不含新模式,沿用可免 migration)。
+    用上了原本閒置的 5,021 題非選(97% 有詳解)。實測:5 題全記錄、錯題本、XP/金幣、結算數字全正確。
+  - **② 全真模擬考**(commit `ca2c658`):`/mock-exam` 加「全真單科」模式(保留原快速綜合)。依真實會考規格
+    組卷(國42/英41/數25/自54/社63 + 官方時間),`FULL_EXAM_SPEC` 定義於 `types.ts`;結算改用**容錯估級**,
+    直接回答「**距 A++ 還差幾題**」並比對是否超時。實測數學 25 題 → C 級/距 A++ 還差 16 題/exam_sessions 正確寫入。
+  - **③ 🔴 修好嚴重既有 bug(本次最大收穫)**:搬遷時 `restore-3-data.mjs` 用 `OVERRIDING SYSTEM VALUE` 灌入
+    資料卻**沒把 identity 序列 setval 到 max(id)**,導致新 insert 主鍵衝突 →**搬遷後全系統(含選擇題)完全
+    無法記錄任何作答**,而且 `recordAnswer` 靜默吞掉 insert 錯誤所以畫面照常前進、無人發現。
+    修復 migration `20260719000000_fix_identity_sequences.sql`(一次修好所有 identity 表,可重複執行),
+    由使用者在 Supabase SQL Editor 執行;`recordAnswer` 改為會 console.error 不再靜默。
+    **教訓:自動化測試用 service key 走了不同路徑,所以 24 項全綠卻沒抓到——真人瀏覽器測試不可取代。**
+    **下次若再搬遷,restore 灌完資料後務必跑一次那支 migration。**
+  - **④ ⚠️ 教訓:Vercel 網址搞錯,誤判「家人連不進去」**。我拿瀏覽器網址列上的 `cap-jessie5414.vercel.app`
+    去測,得到 302 就斷定 Deployment Protection 擋住家人,請使用者關掉保護——**這是錯的**。真正的正式網址是
+    Dashboard → Overview → **Domains** 欄位的 `cap-three-ruddy.vercel.app`,而 **Standard Protection 本來就
+    不擋正式 Domain**。保護已請使用者改回開啟。**判斷對外可達性前,先確認 Domains 欄位的網址再測。**
+  - **⑤ ⚠️ 資安事件(已處理)**:我把 service_role key 當**命令列參數**傳給一次性腳本,Claude Code 權限系統
+    把整條含金鑰的指令記進 `.claude/settings.local.json` 並被 commit,**push 時被 GitHub 密鑰防護擋下**。
+    金鑰**沒有外洩到雲端**,已清除該行、`settings.local.json` 改為不進 git(`.gitignore`)。
+    **教訓:腳本要金鑰一律從 `.env.local` 讀,不要當 CLI 參數傳。** 掃描密鑰時也不要排除 `.claude/`。
+  - **⑥ P0 第三項「資料修復」實查後決定不硬做**(結論見上方「還沒做的」):自然 48 題多為選項示意圖沒轉好、
+    不能盲目清 flag;社會詳解原始檔本來就只有 40%,只能 AI 生成。兩者都需使用者先決定方向。
+  - 另:本次也建立了使用者層級的 `shift-log` skill(開工/收工流程,存於 `github.com/storynow01-arch/skill`)
+    並在 `CLAUDE.md` 加了對應規則(commit `141a54c`)。
+  - **下一步:先讓家人真的用幾天拿回饋**(網址與帳密見上方),並建議關閉 Supabase 公開註冊。
 
 - 2026-07-15:**全系統 A++ 體檢完成,完整報告在 `docs/09-A++體檢報告與衝刺路線.md`(之後要做新功能請先讀它)**。實掃新專案題庫的重點發現:數學可用單選僅 3,576(舊記載 8,597 是含非選的誤導數字);**數學非選 5,021 題可用(有答案有詳解)但 app 完全沒使用**——P0 建議做「自評制非選練習模式」;題組 passage 全庫 0 筆;英聽 0;自然會考真題可用僅 24 題(59 題待修)、自然 D5 難題只有 2 題;社會詳解覆蓋僅 43%;knowledge_code 有 5 萬題資料但完全未用。報告含逐科 A++ 處方(容錯數/題型結構/每日菜單)、平台缺口(全真模考、題組引擎、英聽、知識點診斷、時間壓力訓練)、趣味性升級(難題賞金、Combo、真題挑戰日)與 P0-P2 施工順序表。本輪僅分析未動程式。
 - 2026-07-14(續四):**建立「開工/收工」工作慣例(CLAUDE.md)+ 個人 skill 基礎建設(跟這個專案本身無關,順手記一筆方便理解 CLAUDE.md 為什麼多了一段)**。使用者確認 Vercel 上線、密碼重設完成後,要求把「開工讀交接文件、收工寫回進度日誌」這個習慣固定下來。評估後認為**這個專案自己的規則**(讀哪份文件、依什麼原則)寫進本專案 [CLAUDE.md](CLAUDE.md) 最直接;但「開工/收工」這個口語觸發詞的行為模式想在**所有專案**通用,所以另外用 skill-creator 建了一個使用者層級的 `shift-log` skill(存在 `~/.claude/skills/shift-log`,實際內容版控在新建的 `github.com/storynow01-arch/skill` repo,本機用 junction 接過去,不佔用這個專案的 git 歷史)。過程中使用者要求 review 一份「個人偏好+資安準則」的全域設定草稿,抓出幾個問題(英文切換指令主詞不清、密鑰掃描關鍵字太窄漏抓 PASSWORD/TOKEN/連線字串、跟本專案還原腳本用 CLI 參數傳密碼的既有做法沒對齊)但**還沒實際寫成使用者的全域 CLAUDE.md**(使用者尚未回覆是否要存)。也在 review 自己寫的 shift-log skill 時發現一個真漏洞並補上:收工流程原本沒禁止把真正的密碼/金鑰值寫進交接文件,已加規則明確禁止(只能寫存放位置,不能寫值本身)。**下一步:確認是否要把那份全域設定存進 `~/.claude/CLAUDE.md`(使用者尚未答覆)。**
