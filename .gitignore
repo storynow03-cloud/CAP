@@ -43,3 +43,6 @@ Thumbs.db
 #  - data/questions/*.json(乾淨題庫)有版控
 #  - web/public/qimg/(題目圖片,網站執行時需要)有版控
 #  - docs/ scripts/ skills/ HANDOFF.md 皆有版控
+
+# Claude Code 本機權限設定(機器專屬,可能含指令中的敏感值,不進 git)
+.claude/settings.local.json
