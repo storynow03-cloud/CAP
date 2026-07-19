@@ -51,6 +51,23 @@ export async function pickWrittenQuestions(
   return shuffle(data ?? []).slice(0, opts.count);
 }
 
+/** 全真模擬考單科選題:依真實規格題數,從該科可用單選題隨機組卷 */
+export async function pickFullExam(
+  supabase: SupabaseClient,
+  subject: string,
+  count: number
+): Promise<Question[]> {
+  const { data, error } = await supabase
+    .from("questions")
+    .select("*")
+    .eq("subject", subject)
+    .eq("needs_review", false)
+    .eq("type", "single_choice")
+    .limit(1500);
+  if (error) throw error;
+  return shuffle(data ?? []).slice(0, count);
+}
+
 /**
  * 分階挑戰選題(核心):
  * 1. 錯題複習最多 3 題(到期的)
