@@ -58,3 +58,14 @@ body {
 .qhtml sub {
   font-size: 0.7em;
 }
+
+/* 清單預覽(錯題本):要看得到圖才認得出是哪一題,但整份清單可能幾十題,
+   所以限制高度,避免圖片把頁面撐到滑不完。 */
+.qhtml-preview {
+  max-height: 8.5rem;
+  overflow: hidden;
+}
+.qhtml-preview img {
+  max-height: 5rem;
+  width: auto;
+}

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Quiz from "@/components/Quiz";
 import { subjectLabel, type Question } from "@/lib/types";
-import { stripHtml } from "@/lib/html";
 
 interface WrongRow {
   question_id: string;
@@ -101,7 +100,12 @@ export default function WrongBookPage() {
                   {r.streak > 0 && `|已連對 ${r.streak} 次`}
                 </span>
               </div>
-              <p className="line-clamp-2 text-slate-700">{stripHtml(r.questions.question)}</p>
+              {/* 直接渲染 HTML,讓幾何圖/數學式圖片看得到——只給文字的話,
+                  「如圖…」這種題目在錯題本裡會變成認不出來的謎題。 */}
+              <div
+                className="qhtml qhtml-preview text-slate-700"
+                dangerouslySetInnerHTML={{ __html: r.questions.question }}
+              />
             </div>
           ))}
           {!rows.length && (
