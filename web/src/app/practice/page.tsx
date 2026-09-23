@@ -7,10 +7,35 @@ import Quiz from "@/components/Quiz";
 import WrittenQuiz from "@/components/WrittenQuiz";
 import { SUBJECTS, type Question } from "@/lib/types";
 
+interface TopicRow {
+  topic: string;
+  cnt: number;
+  volume: string | null;
+}
+
+/** 康軒六冊對應年級。DB 存的是「第 1 冊」這種格式,取數字來對照。 */
+const VOLUME_LABEL = ["", "七上(第1冊)", "七下(第2冊)", "八上(第3冊)", "八下(第4冊)", "九上(第5冊)", "九下(第6冊)"];
+const OTHER_LABEL = "會考真題 / 其他";
+
+/** 把單元依冊次分組,讓孩子能直接對上學校進度,而不是在上百個單元裡用筆畫找。 */
+function groupByVolume(rows: TopicRow[]): { label: string; topics: TopicRow[] }[] {
+  const groups = new Map<string, TopicRow[]>();
+  for (const r of rows) {
+    const n = Number(String(r.volume ?? "").match(/\d+/)?.[0] ?? 0);
+    const label = VOLUME_LABEL[n] || OTHER_LABEL;
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label)!.push(r);
+  }
+  // 依年級順序排,「會考真題 / 其他」固定放最後
+  return [...VOLUME_LABEL.slice(1), OTHER_LABEL]
+    .filter((label) => groups.has(label))
+    .map((label) => ({ label, topics: groups.get(label)! }));
+}
+
 export default function PracticePage() {
   const [subject, setSubject] = useState("math");
   const [format, setFormat] = useState<"choice" | "written">("choice");
-  const [topics, setTopics] = useState<string[]>([]);
+  const [topics, setTopics] = useState<TopicRow[]>([]);
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState(0);
   const [count, setCount] = useState(10);
@@ -30,7 +55,7 @@ export default function PracticePage() {
     setTopic("");
     const supabase = createClient();
     supabase.rpc("get_topics", { subj: subject }).then(({ data }) => {
-      setTopics((data ?? []).map((r: { topic: string }) => r.topic));
+      setTopics((data ?? []) as TopicRow[]);
     });
   }, [subject]);
 
@@ -136,10 +161,14 @@ export default function PracticePage() {
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
         >
           <option value="">全部單元</option>
-          {topics.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
+          {groupByVolume(topics).map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.topics.map((t) => (
+                <option key={t.topic} value={t.topic}>
+                  {t.topic}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
 
