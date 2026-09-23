@@ -3,6 +3,9 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* 本站只設計了淺色模式(全站 90 幾處寫死 bg-white 卡片、0 個 dark: 樣式),
+     明確宣告 light 讓瀏覽器不要自動把表單元件、底色轉成深色。 */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,12 +15,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* 這裡原本有 Next.js 範本預設的深色模式覆寫(把 --foreground 改成淺灰 #ededed)。
+   但全站卡片都是寫死的 bg-white,而題幹/選項文字沒有指定顏色、會繼承 --foreground,
+   結果孩子的 iPad 一進深色模式就變成「淺灰字印在白卡片上」幾乎看不見。
+   本站沒有任何深色模式設計,故移除覆寫、固定淺色。 */
 
 body {
   background: var(--background);
