@@ -11,6 +11,40 @@ interface TopicRow {
   topic: string;
   cnt: number;
   volume: string | null;
+  subtopic: string | null;
+  source: string | null;
+}
+
+/**
+ * 取得單元在課本裡的章節序號,用來照「課程進度」排序(而不是中文筆畫)。
+ * 各科編號位置不同:自然/數學/社會在 subtopic(如 01-02、3-2),
+ * 國文在 source 的課次(如 1_題庫題目/03人間好時節),英語在 topic 的 L1_ 前綴。
+ * 回傳數字陣列而非字串,是因為數學「3-2」與英語「L10」都沒有補零,
+ * 純文字比較會把 10 排在 3 前面。
+ */
+function chapterSeq(t: TopicRow): number[] {
+  const fromSubtopic = t.subtopic?.match(/\d+/g);
+  if (fromSubtopic?.length) return fromSubtopic.map(Number);
+
+  const tail = (t.source ?? "").split("/").pop() ?? "";
+  const fromSource = tail.match(/^(\d+(?:-\d+)*)/);
+  if (fromSource) return fromSource[1].split("-").map(Number);
+
+  const fromLesson = t.topic.match(/^L(\d+)/i);
+  if (fromLesson) return [Number(fromLesson[1])];
+
+  return [Number.MAX_SAFE_INTEGER]; // 沒有編號的排最後
+}
+
+/** 依章節序號排序,序號相同或都沒有時退回名稱排序 */
+function byChapter(a: TopicRow, b: TopicRow): number {
+  const x = chapterSeq(a);
+  const y = chapterSeq(b);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? -1) - (y[i] ?? -1);
+    if (d !== 0) return d;
+  }
+  return a.topic.localeCompare(b.topic, "zh-Hant");
 }
 
 /** 康軒六冊對應年級。DB 存的是「第 1 冊」這種格式,取數字來對照。 */
@@ -26,10 +60,10 @@ function groupByVolume(rows: TopicRow[]): { label: string; topics: TopicRow[] }[
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label)!.push(r);
   }
-  // 依年級順序排,「會考真題 / 其他」固定放最後
+  // 依年級順序排,「會考真題 / 其他」固定放最後;各冊內部依課本章節順序
   return [...VOLUME_LABEL.slice(1), OTHER_LABEL]
     .filter((label) => groups.has(label))
-    .map((label) => ({ label, topics: groups.get(label)! }));
+    .map((label) => ({ label, topics: groups.get(label)!.sort(byChapter) }));
 }
 
 export default function PracticePage() {
