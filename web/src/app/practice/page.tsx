@@ -36,7 +36,8 @@ export default function PracticePage() {
   const [subject, setSubject] = useState("math");
   const [format, setFormat] = useState<"choice" | "written">("choice");
   const [topics, setTopics] = useState<TopicRow[]>([]);
-  const [topic, setTopic] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [openGroups, setOpenGroups] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState(0);
   const [count, setCount] = useState(10);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -50,9 +51,10 @@ export default function PracticePage() {
       .then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  // 載入該科的單元清單
+  // 載入該科的單元清單(換科目時清掉已選單元,避免選到別科的單元)
   useEffect(() => {
-    setTopic("");
+    setSelectedTopics([]);
+    setOpenGroups([]);
     const supabase = createClient();
     supabase.rpc("get_topics", { subj: subject }).then(({ data }) => {
       setTopics((data ?? []) as TopicRow[]);
@@ -65,7 +67,7 @@ export default function PracticePage() {
     try {
       const opts = {
         subject,
-        topic: topic || undefined,
+        topics: selectedTopics,
         difficulty: difficulty || undefined,
         count,
       };
@@ -152,25 +154,86 @@ export default function PracticePage() {
           </p>
         )}
 
-        <label className="mb-2 mt-5 block text-sm font-semibold">
-          單元(共 {topics.length} 個,不選 = 全部)
-        </label>
-        <select
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
-        >
-          <option value="">全部單元</option>
-          {groupByVolume(topics).map((g) => (
-            <optgroup key={g.label} label={g.label}>
-              {g.topics.map((t) => (
-                <option key={t.topic} value={t.topic}>
-                  {t.topic}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <div className="mb-2 mt-5 flex items-center justify-between">
+          <label className="text-sm font-semibold">
+            單元(可複選,不選 = 全部)
+          </label>
+          {selectedTopics.length > 0 && (
+            <button
+              onClick={() => setSelectedTopics([])}
+              className="text-xs font-semibold text-indigo-600 hover:underline"
+            >
+              已選 {selectedTopics.length} 個・清除
+            </button>
+          )}
+        </div>
+        <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-2">
+          {groupByVolume(topics).map((g) => {
+            const names = g.topics.map((t) => t.topic);
+            const chosen = names.filter((n) => selectedTopics.includes(n)).length;
+            const open = openGroups.includes(g.label);
+            return (
+              <div key={g.label}>
+                <div className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5">
+                  <button
+                    onClick={() =>
+                      setOpenGroups((prev) =>
+                        open ? prev.filter((x) => x !== g.label) : [...prev, g.label]
+                      )
+                    }
+                    className="flex flex-1 items-center gap-1.5 text-left text-sm font-semibold text-slate-700"
+                  >
+                    <span className="text-xs text-slate-400">{open ? "▾" : "▸"}</span>
+                    {g.label}
+                    <span className="text-xs font-normal text-slate-400">
+                      {g.topics.length} 單元{chosen > 0 && `・已選 ${chosen}`}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() =>
+                      setSelectedTopics((prev) =>
+                        chosen === names.length
+                          ? prev.filter((x) => !names.includes(x))
+                          : [...new Set([...prev, ...names])]
+                      )
+                    }
+                    className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-indigo-600 ring-1 ring-slate-200"
+                  >
+                    {chosen === names.length ? "取消整冊" : "選整冊"}
+                  </button>
+                </div>
+                {open && (
+                  <div className="mt-1 mb-2 space-y-0.5 pl-5">
+                    {g.topics.map((t) => (
+                      <label
+                        key={t.topic}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-indigo-50"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 shrink-0 accent-indigo-600"
+                          checked={selectedTopics.includes(t.topic)}
+                          onChange={(e) =>
+                            setSelectedTopics((prev) =>
+                              e.target.checked
+                                ? [...prev, t.topic]
+                                : prev.filter((x) => x !== t.topic)
+                            )
+                          }
+                        />
+                        <span className="flex-1">{t.topic}</span>
+                        <span className="shrink-0 text-xs text-slate-400">{t.cnt} 題</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!topics.length && (
+            <p className="py-3 text-center text-sm text-slate-400">載入單元中…</p>
+          )}
+        </div>
 
         <label className="mb-2 mt-5 block text-sm font-semibold">難度</label>
         <div className="flex gap-2">

@@ -10,30 +10,34 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** 自由練習選題 */
+/** 自由練習選題(topics 可複選,空陣列 = 全部單元) */
 export async function pickPracticeQuestions(
   supabase: SupabaseClient,
-  opts: { subject: string; topic?: string; difficulty?: number; count: number }
+  opts: { subject: string; topics?: string[]; difficulty?: number; count: number }
 ): Promise<Question[]> {
+  const picked = opts.topics?.length ? opts.topics : null;
   let q = supabase
     .from("questions")
     .select("*")
     .eq("subject", opts.subject)
     .eq("needs_review", false)
     .eq("type", "single_choice")
-    .limit(500);
-  if (opts.topic) q = q.eq("topic", opts.topic);
+    // 有指定單元時放寬上限:若只抓 500 筆,選了多個單元可能整批都來自排在前面的
+    // 那一個單元,學生會覺得「我明明選了三個單元卻只考一個」。
+    .limit(picked ? 1500 : 500);
+  if (picked) q = q.in("topic", picked);
   if (opts.difficulty) q = q.eq("difficulty", opts.difficulty);
   const { data, error } = await q;
   if (error) throw error;
   return shuffle(data ?? []).slice(0, opts.count);
 }
 
-/** 非選題(紙上作答 → 看詳解 → 自評)選題 */
+/** 非選題(紙上作答 → 看詳解 → 自評)選題(topics 可複選,空陣列 = 全部單元) */
 export async function pickWrittenQuestions(
   supabase: SupabaseClient,
-  opts: { subject: string; topic?: string; difficulty?: number; count: number }
+  opts: { subject: string; topics?: string[]; difficulty?: number; count: number }
 ): Promise<Question[]> {
+  const picked = opts.topics?.length ? opts.topics : null;
   // 非選題沒有選項,必須至少有參考答案才能自評對錯
   let q = supabase
     .from("questions")
@@ -43,8 +47,8 @@ export async function pickWrittenQuestions(
     .neq("type", "single_choice")
     .not("answer_text", "is", null)
     .neq("answer_text", "")
-    .limit(500);
-  if (opts.topic) q = q.eq("topic", opts.topic);
+    .limit(picked ? 1500 : 500);
+  if (picked) q = q.in("topic", picked);
   if (opts.difficulty) q = q.eq("difficulty", opts.difficulty);
   const { data, error } = await q;
   if (error) throw error;
