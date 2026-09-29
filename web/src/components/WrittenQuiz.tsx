@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { recordAnswer } from "@/lib/engine";
 import { subjectLabel, type Question } from "@/lib/types";
+import ReportButton from "@/components/ReportButton";
 
 export interface WrittenResult {
   questionId: string;
@@ -164,6 +165,7 @@ export default function WrittenQuiz({ questions, userId, onFinish }: Props) {
             </div>
           </div>
         )}
+        <ReportButton key={q.id} questionId={q.id} userId={userId} />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const MODULES = [
   { href: "/admin/progress", emoji: "📊", label: "學習狀況", sub: "看孩子今天練了什麼、正確率、弱點單元", from: "from-indigo-500", to: "to-blue-600" },
+  { href: "/admin/reports", emoji: "🚩", label: "題目回報", sub: "孩子回報有問題的題目,確認後可一鍵隱藏", from: "from-rose-500", to: "to-pink-600" },
   { href: "/admin/users", emoji: "🧑‍🎓", label: "帳號管理", sub: "新增/編輯/刪除學生與管理者帳號", from: "from-slate-600", to: "to-slate-800" },
   { href: "/admin/shop", emoji: "🛍️", label: "商城管理", sub: "官方商城商品 CRUD、玩家交易所下架", from: "from-amber-500", to: "to-orange-600" },
   { href: "/admin/pets", emoji: "🐾", label: "夥伴管理", sub: "新增夥伴、上傳圖片、設定加成", from: "from-emerald-500", to: "to-teal-600" },

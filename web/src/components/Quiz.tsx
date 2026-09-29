@@ -6,6 +6,7 @@ import { recordAnswer } from "@/lib/engine";
 import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
 import { levelFromXp, petCheer, fetchPets, type PetDef } from "@/lib/gamify";
 import PetView from "@/components/PetView";
+import ReportButton from "@/components/ReportButton";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -22,10 +23,14 @@ interface Props {
   mode: "practice" | "challenge" | "exam" | "review";
   reviewIds?: Set<string>;
   adaptive?: boolean; // 回合內自適應(挑戰模式)
+  /** 關閉提示券:補強過關要靠真本事,消去選項會讓「連續答對」失真 */
+  disableHints?: boolean;
+  /** 每答一題就通知(補強練習用來即時更新過關進度) */
+  onAnswer?: (q: Question, selected: number, isCorrect: boolean) => void;
   onFinish?: (summary: { total: number; correct: number; results: QuizResult[] }) => void;
 }
 
-export default function Quiz({ questions: initial, userId, mode, reviewIds, adaptive, onFinish }: Props) {
+export default function Quiz({ questions: initial, userId, mode, reviewIds, adaptive, disableHints, onAnswer, onFinish }: Props) {
   const [queue, setQueue] = useState<Question[]>(initial);
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -45,7 +50,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const supabase = createClient();
 
   const q = queue[idx];
-  const allowHint = mode !== "exam"; // 正式模考不能用提示券
+  const allowHint = mode !== "exam" && !disableHints; // 正式模考與補強不能用提示券
 
   useEffect(() => {
     startRef.current = Date.now();
@@ -118,6 +123,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
       timeMs: Date.now() - startRef.current,
     });
     if (isCorrect) setCorrectCount((c) => c + 1);
+    onAnswer?.(q, i, isCorrect);
     const newStreak = isCorrect ? Math.max(1, streak + 1) : Math.min(-1, streak - 1);
     setStreak(newStreak);
     if (pet) setCheer(petCheer(pet.affection, isCorrect));
@@ -242,6 +248,8 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
             )}
           </div>
         )}
+        {/* key 綁題目:換題時元件重建,上一題的回報狀態不會殘留 */}
+        <ReportButton key={q.id} questionId={q.id} userId={userId} />
       </div>
 
       {revealed && pet && cheer && (() => {
