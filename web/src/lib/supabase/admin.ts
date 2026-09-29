@@ -21,6 +21,25 @@ export async function requireStaff() {
   return { ok: true as const, user };
 }
 
+/**
+ * 驗證已登入並回傳角色。學生自己的操作(上傳自己的考卷、做補強題)用這個;
+ * 要代替別人操作時再另外檢查 isStaff。
+ */
+export async function requireUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, status: 401, error: "未登入" };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  const isStaff = !!profile && ["teacher", "parent"].includes(profile.role);
+  return { ok: true as const, user, isStaff };
+}
+
 /** 用服務金鑰呼叫 Supabase(admin / 繞過 RLS)。只能在伺服器端用。 */
 export function adminFetch(path: string, init?: RequestInit) {
   return fetch(`${URL}${path}`, {

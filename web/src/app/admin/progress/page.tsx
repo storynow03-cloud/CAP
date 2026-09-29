@@ -146,6 +146,10 @@ export default function AdminProgressPage() {
 
                 {openId === s.id && (
                   <div className="border-t border-slate-100 bg-slate-50 p-4">
+                    <Link href={`/diagnose?userId=${s.id}`}
+                      className="mb-3 inline-block rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white">
+                      📷 考卷診斷・上傳考卷/看補強進度
+                    </Link>
                     {detailLoading && <p className="py-6 text-center text-sm text-slate-400">載入中…</p>}
                     {detail && <DetailView d={detail} />}
                   </div>
