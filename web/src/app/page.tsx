@@ -24,9 +24,11 @@ export default async function Dashboard() {
         .limit(30),
       supabase
         .from("wrong_book")
-        .select("*", { count: "exact", head: true })
+        // 已隱藏(題目有問題)的錯題不算,跟錯題本頁面的數字一致
+        .select("question_id, questions!inner(needs_review)", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("status", "active")
+        .eq("questions.needs_review", false)
         .lte("due_at", new Date().toISOString()),
       supabase.from("daily_quests").select("*").eq("user_id", user.id).eq("day", today),
     ]);
@@ -146,6 +148,28 @@ export default async function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* 錯題複習提醒:到期就放在最顯眼的地方,一次只要求 10 題,不要讓孩子被 50 題嚇跑 */}
+      {(dueCount ?? 0) > 0 && (
+        <Link
+          href="/wrong-book"
+          className="flex items-center justify-between rounded-2xl border-2 border-amber-300 bg-amber-50 px-5 py-3 transition hover:bg-amber-100"
+        >
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">📌</span>
+            <span>
+              <span className="block font-bold text-amber-800">
+                今天先複習 {Math.min(dueCount ?? 0, 10)} 題錯題
+              </span>
+              <span className="block text-xs text-amber-700">
+                約 {Math.max(3, Math.min(dueCount ?? 0, 10))} 分鐘・複習題 XP 1.5 倍
+                {(dueCount ?? 0) > 10 && `・共 ${dueCount} 題到期`}
+              </span>
+            </span>
+          </span>
+          <span className="text-xl text-amber-700">→</span>
+        </Link>
+      )}
 
       {/* 主要行動:開始挑戰 */}
       <Link

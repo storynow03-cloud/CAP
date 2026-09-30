@@ -25,6 +25,9 @@ export interface Question {
   answer_text: string | null;
   explanation: string | null;
   source: string | null;
+  knowledge_code?: string | null;
+  curriculum_code?: string | null;
+  needs_review?: boolean;
 }
 
 export interface Mastery {

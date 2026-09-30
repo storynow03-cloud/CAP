@@ -18,8 +18,9 @@ export default async function LearnHub() {
   let remedy = 0;
   if (user) {
     const { count } = await supabase
-      .from("wrong_book").select("*", { count: "exact", head: true })
-      .eq("user_id", user.id).eq("status", "active").lte("due_at", new Date().toISOString());
+      .from("wrong_book").select("question_id, questions!inner(needs_review)", { count: "exact", head: true })
+      .eq("user_id", user.id).eq("status", "active").eq("questions.needs_review", false)
+      .lte("due_at", new Date().toISOString());
     due = count ?? 0;
     // 補強任務:練習中的單元(資料表尚未建立時 count 會是 null,當 0 處理)
     const { count: rc } = await supabase

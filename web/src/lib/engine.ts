@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEVEL_DIFFICULTY, type Question } from "./types";
+import { nextReviewState, type ReviewState } from "./review";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -102,17 +103,22 @@ export async function pickChallengeQuestions(
   const reviewIds = new Set<string>();
 
   // 1) 到期錯題
+  // 科目要在資料庫端就篩(inner join):以前是先抓最早到期的 3 題再篩科目,
+  // 只要最早到期的是別科,這一科的錯題就永遠混不進挑戰裡。
   const { data: due } = await supabase
     .from("wrong_book")
-    .select("question_id, questions(*)")
+    .select("question_id, questions!inner(*)")
     .eq("user_id", userId)
     .eq("status", "active")
     .lte("due_at", new Date().toISOString())
+    .eq("questions.subject", subject)
+    .eq("questions.type", "single_choice")
+    .eq("questions.needs_review", false)
     .order("due_at")
     .limit(3);
   for (const row of due ?? []) {
     const q = row.questions as unknown as Question;
-    if (q && q.subject === subject) {
+    if (q) {
       picked.push(q);
       usedIds.add(q.id);
       reviewIds.add(q.id);
@@ -226,15 +232,34 @@ export async function recordAnswer(
   selected: number | null,
   isCorrect: boolean,
   mode: "practice" | "challenge" | "exam" | "review",
-  timeSpentMs: number
-): Promise<{ levelUp?: number; levelDown?: number }> {
+  timeSpentMs: number,
+  /** 變化題:這次作答要算在哪一題錯題的複習進度上(預設就是題目本身) */
+  opts: { reviewOf?: string } = {}
+): Promise<{ levelUp?: number; levelDown?: number; review?: ReviewState }> {
+  // 這題是不是「到期的錯題」?是的話,不管從哪裡做到(挑戰、自由練習、錯題本),
+  // 都算一次複習——孩子不必特地進錯題本,複習進度也會往前走,還能拿到複習加成。
+  const wbId = opts.reviewOf ?? q.id;
+  let wb: { streak: number; due_at: string } | null = null;
+  if (mode !== "exam") {
+    const { data } = await supabase
+      .from("wrong_book")
+      .select("streak, due_at")
+      .eq("user_id", userId)
+      .eq("question_id", wbId)
+      .eq("status", "active")
+      .maybeSingle();
+    // 錯題本裡主動複習:到期與否都算;其他模式:只有到期才算(維持間隔,不然等於一天內連刷三次)
+    if (data && (mode === "review" || new Date(data.due_at).getTime() <= Date.now())) wb = data;
+  }
+  const effectiveMode = wb ? "review" : mode;
+
   const { error: attemptErr } = await supabase.from("attempts").insert({
     user_id: userId,
     question_id: q.id,
     selected,
     is_correct: isCorrect,
     time_spent_ms: timeSpentMs,
-    mode,
+    mode: effectiveMode,
   });
   // 作答沒記錄成功等於整個學習歷程都失真,不要靜默吞掉(這個錯誤曾因為被吞掉而讓
   // 搬遷後「序列沒推進、主鍵衝突」的 bug 潛伏很久沒被發現)。這裡只記錄不 throw,
@@ -258,7 +283,7 @@ export async function recordAnswer(
   });
 
   // 精熟度
-  const result: { levelUp?: number; levelDown?: number } = {};
+  const result: { levelUp?: number; levelDown?: number; review?: ReviewState } = {};
   const { data: m } = await supabase
     .from("mastery")
     .select("*")
@@ -300,7 +325,16 @@ export async function recordAnswer(
   });
 
   // 錯題本
-  if (!isCorrect) {
+  if (wb) {
+    // 複習(含變化題):依間隔重複規則更新;答錯就從頭來
+    const next = nextReviewState(wb.streak, isCorrect);
+    await supabase
+      .from("wrong_book")
+      .update(next)
+      .eq("user_id", userId)
+      .eq("question_id", wbId);
+    result.review = next;
+  } else if (!isCorrect) {
     await supabase.from("wrong_book").upsert({
       user_id: userId,
       question_id: q.id,
@@ -309,34 +343,40 @@ export async function recordAnswer(
       streak: 0,
       status: "active",
     });
-  } else if (mode === "review") {
-    const { data: wb } = await supabase
-      .from("wrong_book")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("question_id", q.id)
-      .maybeSingle();
-    if (wb) {
-      const streak = wb.streak + 1;
-      if (streak >= 3) {
-        await supabase
-          .from("wrong_book")
-          .update({ status: "overcome", streak })
-          .eq("user_id", userId)
-          .eq("question_id", q.id);
-      } else {
-        const interval = Math.min(wb.interval_days * 2 + 1, 14);
-        await supabase
-          .from("wrong_book")
-          .update({
-            streak,
-            interval_days: interval,
-            due_at: new Date(Date.now() + interval * 86400 * 1000).toISOString(),
-          })
-          .eq("user_id", userId)
-          .eq("question_id", q.id);
-      }
-    }
   }
   return result;
+}
+
+/**
+ * 錯題最後一關的「變化題」:同科同單元、孩子沒做過的另一題單選題。
+ * 優先挑同一個知識點(knowledge_code)、難度相近的;找不到就回 null(改考原題)。
+ */
+export async function pickVariant(
+  supabase: SupabaseClient,
+  userId: string,
+  q: Question
+): Promise<Question | null> {
+  const { data: cands } = await supabase
+    .from("questions")
+    .select("*")
+    .eq("subject", q.subject)
+    .eq("topic", q.topic)
+    .eq("needs_review", false)
+    .eq("type", "single_choice")
+    .neq("id", q.id)
+    .limit(60);
+  if (!cands?.length) return null;
+  const { data: done } = await supabase
+    .from("attempts")
+    .select("question_id")
+    .eq("user_id", userId)
+    .in("question_id", cands.map((c) => c.id));
+  const seen = new Set((done ?? []).map((d) => d.question_id));
+  const fresh = cands.filter((c) => !seen.has(c.id));
+  if (!fresh.length) return null;
+  const score = (c: typeof fresh[number]) =>
+    (q.knowledge_code && c.knowledge_code === q.knowledge_code ? 0 : 10) + Math.abs(c.difficulty - q.difficulty);
+  const best = Math.min(...fresh.map(score));
+  const top = fresh.filter((c) => score(c) === best);
+  return top[Math.floor(Math.random() * top.length)];
 }

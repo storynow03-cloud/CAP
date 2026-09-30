@@ -7,6 +7,7 @@ import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
 import { levelFromXp, petCheer, fetchPets, type PetDef } from "@/lib/gamify";
 import PetView from "@/components/PetView";
 import ReportButton from "@/components/ReportButton";
+import { reviewProgressText, type ReviewState } from "@/lib/review";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
 
@@ -22,6 +23,8 @@ interface Props {
   userId: string;
   mode: "practice" | "challenge" | "exam" | "review";
   reviewIds?: Set<string>;
+  /** 變化題 → 它要驗收的原錯題 id(最後一關複習改考同單元另一題) */
+  reviewOf?: Map<string, string>;
   adaptive?: boolean; // 回合內自適應(挑戰模式)
   /** 關閉提示券:補強過關要靠真本事,消去選項會讓「連續答對」失真 */
   disableHints?: boolean;
@@ -30,7 +33,7 @@ interface Props {
   onFinish?: (summary: { total: number; correct: number; results: QuizResult[] }) => void;
 }
 
-export default function Quiz({ questions: initial, userId, mode, reviewIds, adaptive, disableHints, onAnswer, onFinish }: Props) {
+export default function Quiz({ questions: initial, userId, mode, reviewIds, reviewOf, adaptive, disableHints, onAnswer, onFinish }: Props) {
   const [queue, setQueue] = useState<Question[]>(initial);
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -42,6 +45,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   const [pet, setPet] = useState<{ key: string; level: number; affection: number; imageUrl: string | null } | null>(null);
   const [petDefs, setPetDefs] = useState<PetDef[]>([]);
   const [cheer, setCheer] = useState("");
+  const [reviewState, setReviewState] = useState<ReviewState | null>(null);
   const [hintQty, setHintQty] = useState(0);
   const [hintBusy, setHintBusy] = useState(false);
   const [eliminated, setEliminated] = useState<Set<number>>(new Set());
@@ -130,8 +134,10 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
 
     const effectiveMode = reviewIds?.has(q.id) ? "review" : mode;
     const res = await recordAnswer(
-      supabase, userId, q, i, isCorrect, effectiveMode, Date.now() - startRef.current
+      supabase, userId, q, i, isCorrect, effectiveMode, Date.now() - startRef.current,
+      { reviewOf: reviewOf?.get(q.id) }
     );
+    setReviewState(res.review ?? null);
     if (res.levelUp)
       setToast(`🚀 升階!「${q.topic}」升到 Lv${res.levelUp} ${LEVEL_NAMES[res.levelUp]}`);
     else if (res.levelDown)
@@ -168,6 +174,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
   function next() {
     setToast("");
     setCheer("");
+    setReviewState(null);
     setSelected(null);
     setRevealed(false);
     if (idx + 1 >= queue.length) setFinished(true);
@@ -181,7 +188,9 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
       <div className="flex items-center justify-between text-sm text-slate-500">
         <span>
           {subjectLabel(q.subject)}|{q.topic}
-          {reviewIds?.has(q.id) && (
+          {reviewOf?.has(q.id) ? (
+            <span className="ml-2 rounded bg-violet-100 px-2 py-0.5 text-violet-700">變化題驗收</span>
+          ) : reviewIds?.has(q.id) && (
             <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-700">錯題複習</span>
           )}
         </span>
@@ -243,7 +252,11 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, adap
                 <span className="qhtml" dangerouslySetInnerHTML={{ __html: q.explanation }} />
               </div>
             )}
-            {!isCorrect && (
+            {reviewState ? (
+              <p className={`mt-2 text-xs font-semibold ${reviewState.status === "overcome" ? "text-emerald-700" : "text-amber-700"}`}>
+                {isCorrect ? reviewProgressText(reviewState) : "錯題進度歸零,明天再複習一次 📌"}
+              </p>
+            ) : !isCorrect && (
               <p className="mt-2 text-xs text-slate-500">已加入錯題本,明天會再考你一次 📌</p>
             )}
           </div>
