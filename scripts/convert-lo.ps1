@@ -1,6 +1,8 @@
 ﻿# LibreOffice 批次轉換 .doc → HTML(含圖片),背景安全、不卡死
 # 逐「來源子資料夾」批次轉(同資料夾內檔名唯一,可保留結構)
 # 會考真題資料夾排最前面優先轉
+# 用法:預設轉數學/自然;轉其他科:.\convert-lo.ps1 -Subjects 國文,英文,社會
+param([string[]]$Subjects = @('數學','自然'))
 $root = "D:\Claude\國中會考"
 $soffice = "C:\Program Files\LibreOffice\program\soffice.exe"
 $outRoot = "$root\data\lo-html"
@@ -11,12 +13,13 @@ function Log($m) { Add-Content $log "$(Get-Date -Format 'HH:mm:ss') $m" -Encodin
 # 優先順序:會考真題在前
 $priority = @(
   "數學\09.國中教育會考(依年度)", "自然\國中教育會考",
-  "數學\10.國中教育會考(依章節)", "數學\11.仿會考非選擇題"
+  "數學\10.國中教育會考(依章節)", "數學\11.仿會考非選擇題",
+  "社會\國中教育會考", "國文\國中教育會考", "英文\國中教育會考"
 )
 
 # 收集所有含 .doc 的子資料夾
 $allDirs = @()
-foreach ($subj in @('數學','自然')) {
+foreach ($subj in $Subjects) {
   Get-ChildItem -Recurse -Directory "$root\$subj" | ForEach-Object {
     if (Get-ChildItem $_.FullName -Filter *.doc -File) { $allDirs += $_.FullName }
   }
@@ -29,7 +32,7 @@ $ordered += $allDirs | Where-Object { $ordered -notcontains $_ }
 Log "=== LibreOffice 轉換開始,共 $($ordered.Count) 個資料夾 ==="
 $totalDone = 0
 foreach ($dir in $ordered) {
-  $subj = if ($dir -like "*\數學\*" -or $dir -like "*\數學") { "數學" } else { "自然" }
+  $subj = $Subjects | Where-Object { $dir -like "$root\$_\*" } | Select-Object -First 1
   $rel = $dir.Substring("$root\$subj".Length).TrimStart('\')
   $outDir = Join-Path "$outRoot\$subj" $rel
   New-Item -ItemType Directory -Force $outDir | Out-Null
@@ -53,4 +56,4 @@ foreach ($dir in $ordered) {
   Log "  完成,本資料夾已轉 $made/$($docs.Count),累計 $totalDone"
 }
 Log "=== 全部完成,共 $totalDone 檔 ==="
-[IO.File]::WriteAllText("$root\data\lo-done.flag", "DONE", [Text.Encoding]::UTF8)
+[IO.File]::WriteAllText("$root\data\lo-done-$($Subjects -join '-').flag", "DONE", [Text.Encoding]::UTF8)
