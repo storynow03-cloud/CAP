@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
-import { problems, tailNumbers, lastField, SECTION_TAIL, EN_LABEL_TAIL } from "./lib/question-checks.mjs";
+import { problems, tailNumbers, lastField, SECTION_TAIL, EN_LABEL_TAIL, SECTION_NAMES } from "./lib/question-checks.mjs";
 
 const APPLY = process.argv.includes("--apply");
 const restoreIdx = process.argv.indexOf("--restore");
@@ -54,7 +54,8 @@ for (const q of rows) {
   }
   // 單選題:答案欄清乾淨後只剩一個字母 → 就是答案
   if (q.type === "single_choice" && q.answer == null && out.answer_text) {
-    const m = String(out.answer_text).trim().match(/^[（(]?([A-EＡ-Ｅ])[）)]?$/);
+    // 單選題答案只會是一個字母,後面若還黏著下一題題號或段落標題(「B2.」「C題組」「A填充」)一定是雜訊
+    const m = String(out.answer_text).trim().match(new RegExp(`^[（(]?([A-EＡ-Ｅ])[）)]?\\s*(?:${SECTION_NAMES})?\\s*(?:[0-9０-９]{1,3}[.．]?)?$`));
     if (m && LETTER[m[1]] < (q.options?.length ?? 0)) {
       out.answer = LETTER[m[1]];
       out.answer_text = null;

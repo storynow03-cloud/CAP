@@ -47,10 +47,11 @@ export function problems(q) {
 // ── 尾巴題號 ──
 // 解析器用「題號：」切題,下一題的顯示編號(「4.」)會黏在上一題「最後一個欄位」的尾巴
 // (有詳解就在詳解尾,沒詳解就在答案尾)。
-const toN = (s) => Number(String(s).replace(/[０-９]/g, (c) => c.charCodeAt(0) - 0xfee0));
+const toN = (s) => Number(String(s).replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)));
 export const TAIL = /^([\s\S]*?\S)\s*([0-9０-９]{1,3})[.．]\s*$/;
 // 段落標題 + 1.:這一段的最後一題,後面黏著下一段的標題(「…選擇 1.」「…題組 1.」)
-const SECTION = "選擇|題組|解釋|選詞|翻譯|延伸素養題|素養題|填充|看圖回答問題|依提示回答問題|閱讀測驗|克漏字選擇|文法測驗|對話與完成句子|句子重組|字彙測驗|字音|字形|字音字形|成語|修辭|改錯|默寫|注釋";
+const SECTION = "選擇|題組|解釋|選詞|翻譯|延伸素養題|素養題|填充|簡答|看圖回答問題|依提示回答問題|閱讀測驗|克漏字選擇|文法測驗|對話與完成句子|句子重組|字彙測驗|字音|字形|字音字形|成語|修辭|改錯|默寫|注釋";
+export const SECTION_NAMES = SECTION;
 export const SECTION_TAIL = new RegExp(`^([\\s\\S]*?\\S)\\s*(?:${SECTION})\\s*[0-9０-９]{1,2}[.．]\\s*$`);
 // 英文答案尾巴只黏著下一段標題、沒有編號(「…is Sam.填充」)
 export const EN_LABEL_TAIL = new RegExp(`^([\\s\\S]*?[a-zA-Z.?!)’"])\\s*(?:${SECTION})\\s*$`);
