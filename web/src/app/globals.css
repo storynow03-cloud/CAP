@@ -60,6 +60,28 @@ body {
   font-size: 0.7em;
 }
 
+/* Word EQ 算式(scripts/lib/eq-field.mjs 產生):分數、根號、線段上劃線、聯立大括號、約分劃掉。
+   不限定在 .qhtml 底下,錯題本、管理後台等任何顯示題目的地方都要正確。 */
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: center;
+  line-height: 1.15;
+  font-size: 0.9em;
+  margin: 0 0.12em;
+}
+.frac > .num { border-bottom: 1px solid currentColor; padding: 0 0.15em; }
+.frac > .den { padding: 0 0.15em; }
+.sqrt { white-space: nowrap; }
+.sqrt > .rad { border-top: 1px solid currentColor; padding: 0 0.1em; margin-left: 0.05em; }
+.ovl { text-decoration: overline; }
+.cancel { text-decoration: line-through; }
+.boxed { border: 1px solid currentColor; padding: 0 0.15em; }
+.brace { display: inline-flex; align-items: center; vertical-align: middle; }
+.brace > .lb { font-size: 2.2em; line-height: 1; font-weight: 200; margin-right: 0.1em; }
+.arr { display: inline-flex; flex-direction: column; vertical-align: middle; line-height: 1.4; }
+
 /* 清單預覽(錯題本):要看得到圖才認得出是哪一題,但整份清單可能幾十題,
    所以限制高度,避免圖片把頁面撐到滑不完。 */
 .qhtml-preview {

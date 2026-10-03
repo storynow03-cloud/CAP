@@ -29,6 +29,7 @@ data/lowres-images.json
 data/lo-test/
 data/lo-test2/
 data/raw/
+data/eq-text/
 data/questions/*.bak
 data/questions/*.html.json
 
