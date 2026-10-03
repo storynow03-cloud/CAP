@@ -25,8 +25,10 @@ if (restoreIdx !== -1) {
   process.exit(0);
 }
 
-const FIELDS = ["answer", "answer_text", "explanation", "needs_review"];
-const UNHIDE_SUBJECTS = new Set(["chinese", "english", "social"]);
+const FIELDS = ["options", "answer", "answer_text", "explanation", "needs_review"];
+// 自然:「答案黏在選項裡」那批是因為沒答案才被藏,破損偵測沒跑過;現在 problems() 已含同一套
+// 掉字偵測,所以也可放回。數學仍不碰(數學當初被藏多半就是掉字,另案處理)。
+const UNHIDE_SUBJECTS = new Set(["chinese", "english", "social", "science"]);
 const manualBroken = new Set(
   fs.readFileSync(path.join(ROOT, "scripts", "hide-missing-figure-questions.mjs"), "utf8")
     .match(/const BROKEN = \[([\s\S]*?)\];/)[1].match(/"[a-z]+-[\d-]+"/g).map((s) => s.slice(1, -1))
@@ -41,6 +43,20 @@ const plan = [];
 for (const q of rows) {
   const out = { ...q };
   const why = [];
+  // 答案黏在最後一個選項裡:「向下移。 《答案》C 題組」「…。 《答案》(1)C　(2)B 1」→ 拆出來
+  if (q.type === "single_choice" && q.answer == null && !q.answer_text && q.options?.length) {
+    const li = q.options.length - 1;
+    const m = String(q.options[li]).match(/^([\s\S]*?)[\s　]*《答案》\s*([\s\S]+)$/);
+    if (m && !/《答案》/.test(m[2])) {
+      const opt = m[1].replace(/。$/, "");
+      const ans = m[2].replace(new RegExp(`\\s*(?:${SECTION_NAMES})?\\s*[0-9０-９]{0,3}[.．]?\\s*$`), "").trim();
+      if (opt.trim() && ans) {
+        out.options = [...q.options.slice(0, li), opt];
+        out.answer_text = ans;
+        why.push("拆出選項裡的答案");
+      }
+    }
+  }
   const t = tails.get(q.id);
   if (t) { out[t.field] = t.body; why.push("去尾巴題號"); }
   else {

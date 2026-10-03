@@ -65,7 +65,8 @@ function extract(file) {
     html.replace(/<img[^>]*>/gi, (tag) => {
       const src = (tag.match(/src="([^"]+)"/i) || [])[1];
       const w = Number((tag.match(/width="(\d+)"/i) || [])[1]) || null;
-      imgs.push({ path: src ? path.join(path.dirname(file), decodeURIComponent(decode(src))) : null, width: w });
+      const name = decode((tag.match(/name="([^"]*)"/i) || [])[1] ?? "");
+      imgs.push({ path: src ? path.join(path.dirname(file), decodeURIComponent(decode(src))) : null, width: w, name, html: file });
       return `\x02${imgs.length - 1}\x03`;
     }).replace(/<[^>]+>/g, "")
   );
@@ -75,6 +76,7 @@ function extract(file) {
 const made = new Map(); // 原圖路徑 → 網址(同一張圖只壓一次)
 const failed = [];
 const lowRes = new Set();
+const lowResUse = [];
 let bytesOut = 0;
 async function toWebp(img, subject) {
   if (!img.path || !fs.existsSync(img.path)) return null;
@@ -135,6 +137,20 @@ for (const subject of SUBJECTS) {
       const q = cands[0];
       const nQ = q ? countX(q.question) + (q.options ?? []).reduce((s, o) => s + countX(o), 0) : 0;
       const nE = q ? countX(q.explanation) : 0;
+      if (q && !nQ && !nE && q.needs_review && cands.length === 1) {
+        // 已經補過圖、但因低解析圖還隱藏著的題目:依序對照,只記錄低解析圖給 render-ole-tables.mjs
+        const ours = [q.question, ...(q.options ?? [])].join("\n").match(new RegExp(`/qimg/${subject}/h/[0-9a-f]+\\.(?:webp|gif|png|jpe?g)`, "g")) ?? [];
+        const body = block.split("《答案》")[0];
+        const bodyImgs = [...body.matchAll(/\x02(\d+)\x03/g)].map((m) => imgs[+m[1]]);
+        if (ours.length && ours.length === bodyImgs.length) {
+          for (let i = 0; i < bodyImgs.length; i++) {
+            const url = await toWebp(bodyImgs[i], subject);
+            if (url === ours[i] && lowRes.has(bodyImgs[i].path))
+              lowResUse.push({ id: q.id, subject, html: bodyImgs[i].html, name: bodyImgs[i].name, url });
+          }
+        }
+        continue;
+      }
       if (!q || (!nQ && !nE)) continue;
       stat.need++;
       if (cands.length > 1) { stat.ambiguous++; continue; }
@@ -172,7 +188,13 @@ for (const subject of SUBJECTS) {
         if (moved.length) { out.question = `${out.question}\n${moved.join("\n")}`; why.push("附圖移回題幹"); }
       }
       const usesLowRes = [...bodyImgs, ...explImgs].some((im) => lowRes.has(im.path));
-      if (q.needs_review && usesLowRes) why.push("低解析圖,暫不放回");
+      if (q.needs_review && usesLowRes) {
+        why.push("低解析圖,暫不放回");
+        // 記下來給 render-ole-tables.mjs:這些多半是 Word 內嵌表格,可以轉成真正的 HTML 表格
+        [...bodyImgs, ...explImgs].forEach((im) => {
+          if (lowRes.has(im.path)) lowResUse.push({ id: q.id, subject, html: im.html, name: im.name, url: made.get(im.path) });
+        });
+      }
       else if (q.needs_review && !manualBroken.has(q.id) && problems(out).length === 0) { out.needs_review = false; why.push("放回題庫"); stat.unhide++; }
       const bodyPatch = {};
       for (const f of FIELDS) if (JSON.stringify(out[f]) !== JSON.stringify(q[f])) bodyPatch[f] = out[f];
@@ -186,6 +208,8 @@ const bySubj = {};
 for (const p of plan) for (const w of p.why) bySubj[`${w} ${p.subject}`] = (bySubj[`${w} ${p.subject}`] ?? 0) + 1;
 console.log(bySubj, `圖片 ${made.size} 張(去重後)`);
 if (failed.length) console.log(`無法處理的圖片 ${failed.length} 張(該題跳過),例:`, failed.slice(0, 3));
+fs.writeFileSync(path.join(ROOT, "data", "lowres-images.json"), JSON.stringify(lowResUse), "utf8");
+console.log(`低解析圖使用清單 ${lowResUse.length} 筆 → data/lowres-images.json`);
 const dumpIdx = process.argv.indexOf("--dump");
 if (dumpIdx !== -1) fs.writeFileSync(process.argv[dumpIdx + 1], JSON.stringify(plan), "utf8");
 if (IMAGES) console.log(`本次新產生圖片 ${(bytesOut / 1048576).toFixed(1)} MB`);

@@ -5,6 +5,21 @@
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
+> **2026-10-03 最新狀態(新對話先看這段)**
+> - **正式站** https://cap-three-ruddy.vercel.app ,最新已部署 commit `c00946ad`(函式機房搬到首爾)。
+>   `web/vercel.json` 的 `regions: ["icn1"]` 絕不能拿掉(資料庫在首爾,拿掉整站每頁慢 1~2 秒)。
+> - **Supabase 請認明專案 CAP**(`lwdziaamuygqfgfcmffd`,首爾),不是 CAP-review。我沒有資料庫密碼,DDL/RLS 要請使用者到 SQL Editor 執行。
+> - **可見題目 84,733 題**(國文 22,794/英文 12,182/數學 8,025/自然 11,753/社會 29,979)。所有題庫修改都有備份在
+>   `D:\Claude\國中會考-DB備份\2026-09-30-*`、`2026-10-01-*`、`2026-10-03-*`,各腳本都有 `--restore` / `--undo`。
+> - **工作規則**:CLAUDE.md 已加入 Opus 5.5 工作方式(不無意義停頓、先講終點、維護 `task_checklist.md`、驗證證據)。
+>   **開工時讀 `task_checklist.md` 接續未完成項目。** 根目錄有使用者放的「要修正的內容.docx」= 下一輪需求,開工要讀。
+> - **git**:2026-10-03 收工時本輪所有腳本與文件已 commit 並 push 到 main(使用者同意)。
+>   根目錄「要修正的內容.docx」是使用者的需求文件,**刻意未加入 git**。
+> - **待使用者處理**:① 換 Supabase secret key 與 Gemini key(曾出現在對話截圖)② 到 SQL Editor 執行
+>   `20261003000000_rls_initplan.sql`(權限規則加速)③ 關閉公開註冊、正式使用前換掉 111111 密碼。
+> - Gemini 金鑰:`GEMINI_API_KEY_1`(也支援 `GEMINI_API_KEYS` 逗號清單),模型可用 `GEMINI_MODELS` 覆寫。區網 IP 目前 192.168.8.174(會變)。
+> - skill:`vercel-supabase-latency`、`supabase-key-usage`、`shift-log` 都已接到 ~/.claude/skills(收藏庫 D:\Claude\skill 已更新到最新)。
+
 **⚠️ 2026-07-14 搬遷 + push + Vercel 上線 + 密碼重設全部完成,以下是最新狀態,舊資訊已作廢:**
 
 - **Supabase 專案已搬遷**:從舊帳號的「CAP」(`bghglvfbyhfjuvgyzyzy`)搬到 **`storynow03-cloud` 帳號**的新專案「CAP」
@@ -19,6 +34,9 @@
   fast-forward 合併進 `main`**——現在 `main` 就是最新完整版,兩分支內容相同。之後**直接在 main 開發、push 到
   main 即可**,不用再管理 feature 分支合併的事。
 - **Vercel 部署**:✅ **已上線**(Hobby 方案,帳號 `storynow03-cloud`,專案 `cap`)。
+  - ⚠️ **`web/vercel.json` 的 `"regions": ["icn1"]`(首爾)絕對不能拿掉**:Supabase CAP 在首爾,
+    Vercel 預設把函式放在美東 `iad1`,每查一次資料庫都要橫越太平洋,整站每頁慢 1~2 秒且沒有任何錯誤訊息。
+    診斷方法見 skill 收藏庫的 `vercel-supabase-latency`(看 `x-vercel-id` 第二段 = 函式實際機房)。
   - 🔴 **給家人的正式網址是 `https://cap-three-ruddy.vercel.app`**(Vercel Dashboard → Overview → **Domains** 欄位那個)。
     **舊文件寫的 `cap-jessie5414.vercel.app` 是錯的,那是「部署別名」不是正式 Domain,會被保護擋掉,不要再用。**
   - **Vercel Deployment Protection 維持「開啟 + Standard Protection」是正確設定,不要關掉。**
@@ -116,6 +134,12 @@ D:\Claude\國中會考\
 | `convert-lo.ps1` | **LibreOffice 批次轉 HTML**(數學/自然,會考真題優先,背景安全) |
 | `parse-questions-lo.mjs` | 解析 LibreOffice HTML(含圖/上標,`looksDegraded` 過濾破損題)→ *.html.json |
 | `rebuild-math-science.mjs` | 一鍵:解析→合併→重建 DB 數學/自然題庫(破損題隱藏) |
+| `repair-question-text.mjs` | 還原被「知識點」吃掉的題幹開頭;隱藏圖/算式遺失無法作答的題目(2026-09-30) |
+| `repair-answer-tail.mjs` | 清答案/詳解尾巴的下一題題號(相鄰連號才算)、補回單選答案、拆出黏在選項裡的答案;通過檢查才放回 |
+| `patch-lo-images.mjs` | LibreOffice 圖片依序補回 `\x01` 佔位(社會/國文/英文),附圖移回題幹;`--images` 先產圖、部署後才 `--apply` |
+| `split-groups.mjs` | 題組(文章 + (1)(2)(3) 小題)拆成單題,id = 原 id + `-g` + 小題號;`--undo` 可刪 |
+| `render-ole-tables.mjs` + `ole_tables.py` | Word 內嵌表格 → HTML 表格(取代模糊預覽圖),用預覽圖框線列數驗證沒有多出被裁切的列 |
+| `lib/question-checks.mjs` | **嚴格可用性檢查**(所有「放回題庫」的腳本共用):答案、選項、缺圖、題組殘留、掉字、低解析圖… |
 | `test-contest-flow.mjs` | 大會考流程 + RLS 整合測試 |
 
 ## 5. 資料庫(Supabase public schema)
@@ -334,6 +358,32 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-09-30 ~ 10-03:**錯題複習改版 + 題庫大修復(可見題目 56,561 → 84,733)+ 網站快 2~3 倍 + 導入 Opus 5.5 工作規則**。
+  **錯題複習**(commit 64feea3,已上線):健檢發現孩子錯題本 181 題全部過期、0 題克服 → 首頁醒目提醒「今天先複習 10 題」、
+  一次最多 10 題、到期錯題在挑戰/自由練習答到也算複習(拿複習加成)、間隔 1→3→7 天、**最後一關考同單元沒做過的變化題**
+  (`lib/review.ts`,單元測試 6/6);修正挑戰模式「先取 3 題再篩科目」導致錯題混不進來的 bug。
+  **題庫**(全部有備份、可還原;每批都抽題逐題核對答案):① 原始解析器 `知識點：([^\s　]+)` 會一路吃到下一個空白 →
+  英文題少開頭、國文題幹整句(甚至《答案》)被吃進 knowledge_code;從該欄位精準還原,可見題 3,990 題題幹變完整。
+  ② 隱藏 2,741 題可見但無法作答的題目(\x01 圖片遺失、\x07\x03\b 分數遺失、「若＝，＝2」線段遺失)。
+  ③ 答案/詳解尾巴黏著「下一題題號」(「C4.」)→ 單選題解析不出答案而被藏;用「同檔相鄰題連號」確認後清除,放回約 8,700 題。
+  ④ 社會/國文/英文用 LibreOffice 重轉取圖,依序補回 \x01(5,115/5,115 數量吻合),附圖從最後選項移回題幹,
+  圖片壓 WebP 去重(約 1.1 萬張、134MB,commit adab1e4a)。資料庫是正式站共用 → **先部署圖片、確認線上拿得到才寫 DB**。
+  ⑤ 題組拆題:6,800 組 → 18,623 道小題(id 加 `-g1`…),克漏字補「第（N）格」說明。⑥ Word 內嵌表格點陣化後字糊 →
+  從 .odt 的內嵌文件直接轉 HTML 表格;抽查發現**內嵌表格可能被裁切、轉出多餘列**,加「預覽圖框線列數 = 表格列數」驗證後
+  放回 439 題。⑦ 自然 391 題答案黏在最後選項(「向下移。《答案》C 題組」)→ 拆出。
+  **速度**:照 skill `vercel-supabase-latency` 量測,函式跑在美東 iad1、資料庫在首爾 → 加 `web/vercel.json` regions icn1,
+  首頁 1,619→701ms、診斷 API 1,948→574ms。另備妥 RLS `(select auth.uid())` 加速 SQL(待使用者執行)。
+  **Claude 設定**:Opus 5.5、effort medium(符合官方建議);CLAUDE.md 加入工作方式規則;建立 `task_checklist.md`;
+  skill 收藏庫更新並接上 vercel-supabase-latency。這個對話已用 51 萬 token,這是回覆變慢的主因 → 收工換新對話。
+  **教訓**:修題庫時「放回題庫」一定要過共用嚴格檢查(曾差點把低解析表格題、會被裁切的表格放出去,都是抽查才抓到);
+  全形數字轉換寫錯(「１」→49)要用 String.fromCharCode;Python heredoc 的反斜線會被吃掉,改檔用 Edit 工具。
+  **下一步**:見 `task_checklist.md`(使用者的「要修正的內容.docx」、換金鑰、執行 RLS SQL、約 1,280 題非純表格的內嵌物件、
+  數學隱藏題、11 道低解析小題)。
+- 2026-09-30:**考卷診斷 + 題目回報 + 題庫大清理 + 多項孩子回報修正,全部已 push 並在正式 Domain 實測通過**(HEAD 08141f0)。
+  **做了什麼**:① 錯題本有圖的題目只顯示「[圖]」→ 改成直接渲染 HTML;皇小米三階段換成使用者提供的圖。② 夥伴改成原創 Q 版主題(不侵權),另外新增「天官賜福」主題。③ iPad 深色模式下字跟背景同色 → 拿掉深色覆寫,改成 `color-scheme: light`。④ 自由練習:單元依「七上(第1冊)」分組(不顯示章節編號)、可以複選、照課程進度自然排序(migration get_topics_volume / get_topics_order 已在 CAP 執行)。⑤ 稽核「如圖」但沒有圖的題目:416 → 人工逐題看 → 隱藏 45 題(`scripts/hide-missing-figure-questions.mjs`,另外排除 8 題誤判,可以 `--restore` 還原)。⑥ 約 3 萬題題幹開頭的出題標註清掉,知識點/課綱代碼回填到欄位(`scripts/clean-social-prefix.mjs`、`clean-meta-prefix.mjs`;備份放在 `D:\Claude\國中會考-DB備份\2026-09-29-*`)。⑦ 管理者「📊學習狀況」(/admin/progress)。⑧ 🚩題目回報:做題時可以回報,家長在 /admin/reports 處理(隱藏/已修正/忽略)。⑨ 📷考卷診斷(/diagnose,家長跟孩子都能上傳,最多 4 張、每人每天 10 次):Gemini 判讀每一題對錯並對應到單元 → 建立補強任務 → 會考真題優先、用完再用題庫 → 「真的會」的規則寫在 `web/src/lib/remediation.ts`(連續答對 5 題且其中至少 2 題是難題(難度≥3)→ 2 天後複測 3 題全對才算畢業,答錯就回到練習)。資料表 question_reports / diagnoses / remediation_targets(migration 20260929000000 已在 CAP 執行)。
+  **Gemini 設定**:金鑰跟模型都用逗號清單,依「金鑰1×所有模型 → 金鑰2×所有模型」的順序輪詢(`web/src/lib/gemini.ts`)。環境變數 `GEMINI_API_KEYS`(相容舊的 `GEMINI_API_KEY_1`,本機跟 Vercel 目前都用這個)、`GEMINI_MODELS`(可選,預設 3.8→3.7→3.6→3.5-flash→3.5-flash-lite)。時間預算:總共 48 秒、每個模型最多 25 秒。實測 3.8/3.7/3.6 常回 503,3.5-flash 要 23~70 秒,lite 只要 1~2 秒而且判讀準確。正式站實測一次 35 秒、判讀全對。
+  **教訓**:第二次跑清理腳本時覆蓋了備份(已經從快照重建,腳本改用帶時間戳的備份檔名);使用者曾在 CAP-review 執行 SQL(無害,正確的專案是 **CAP** `lwdziaamuygqfgfcmffd`);兩個 dev server 共用 `.next` 造成全站 404 → 刪掉 `.next` 就好;測試資料不要留在 student@test.com(小霏的真實帳號),已經清掉。
+  **下一步**:④ 救回數學被隱藏的 2,987 題(打算用 LibreOffice 把 .doc 轉成 PDF,再用 Gemini 看圖重新轉寫);國文字義 answer_text 尾巴黏到下一題的題號(例如「繞、轉。2.」);建議關閉 Supabase 公開註冊;所有帳號密碼都是 111111;區網 IP 已經變成 192.168.0.15。
 - 2026-07-19:**完成 P0 兩大功能(數學非選、全真模擬考)+ 修好一個讓全系統無法記錄作答的嚴重 bug + 兩個重要教訓**。
   依 `docs/09` 體檢報告動工,兩項功能都已 push 上線並在**正式 Domain** 實測通過。
   - **① 數學非選練習模式**(commit `f25cc56`):`/practice` 加「題型:選擇題 / ✍️ 非選題」切換。自評制流程

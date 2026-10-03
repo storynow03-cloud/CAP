@@ -1,8 +1,17 @@
 // 題庫品質檢查的共用工具(repair-answer-tail.mjs、patch-lo-images.mjs 共用)。
 
+import fs from "node:fs";
+import path from "node:path";
+
+// 低解析表格圖(patch-lo-images.mjs 記錄在 data/lowres-images.json):字糊到讀不出來,
+// 還有這種圖的題目一律不算可用(render-ole-tables.mjs 換成 HTML 表格後就不再含這些網址)
+const LOWRES_FILE = path.resolve(import.meta.dirname, "..", "..", "data", "lowres-images.json");
+const LOWRES = new Set(fs.existsSync(LOWRES_FILE) ? JSON.parse(fs.readFileSync(LOWRES_FILE, "utf8")).map((u) => u.url) : []);
+
 export const plain = (s) =>
   String(s ?? "").replace(/<img[^>]*>/g, "[圖]").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
-const hasImg = (s) => /<img/i.test(s ?? "");
+// 「有附圖」:圖片,或由內嵌物件轉出的 HTML 表格(「如附表」換成表格後就沒有 <img> 了)
+const hasImg = (s) => /<img|<table/i.test(s ?? "");
 
 // 數學/自然「靜默遺失」的算式:「若＝，＝2」「則＋＋＝？」(原本是線段、絕對值、分數)
 export const LOST_EXPR = /(^|[^0-9a-zA-Z）)\]])＝(?=[＝：，。]|$)|(^|[^0-9a-zA-Z）)\]])：(?=[＝：，。])|＝＝|：：|[＋－×÷]＝/;
@@ -13,6 +22,20 @@ const FIGURE = /如圖|下圖|附圖|右圖|左圖|上圖|如下表|下表|附�
 const FIGURE_FALSE = /線上表|[上下]表皮|上表面|下表面|地表/g;
 
 /**
+ * 數學/自然轉換掉字的徵兆(與 parse-questions-lo.mjs 的 looksDegraded 同一套規則):
+ * 線段名稱、次方等掉字後留下「若＝10」「在、上」「，、」這類缺名詞的痕跡。
+ */
+function looksDegraded(qPlain) {
+  if (/[，。：若則為與和（(]\s*(＝|＜|＞|／／|\/\/|≧|≦)/.test(qPlain)) return true;
+  if (/[一-鿿]\s*(／／|\/\/)/.test(qPlain)) return true;
+  if (/[在於]\s*[、，]/.test(qPlain)) return true;
+  if (/[、，]\s*[上中內下]([，。、\s）)]|$)/.test(qPlain)) return true;
+  if (/[，。]\s*[、，]|[、，]\s*[，。]/.test(qPlain)) return true;
+  if (/[（(]\s*[、，]|[、，]\s*[）)]/.test(qPlain)) return true;
+  return false;
+}
+
+/**
  * 嚴格可用性檢查:回傳問題清單,空陣列 = 學生看得懂、答案對得上。
  * 寧可誤判成有問題(繼續隱藏),也不要把壞題放給孩子。
  */
@@ -21,12 +44,14 @@ export function problems(q) {
   const texts = [q.question, ...(q.options ?? [])];
   const all = texts.join("\n");
   if (/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(all)) p.push("控制字元");
+  if ((all.match(/\/qimg\/[a-z]+\/h\/[0-9a-f]+\.\w+/g) ?? []).some((u) => LOWRES.has(u))) p.push("低解析圖");
   if (/《答案》|詳解：/.test(all)) p.push("題目含答案");
   if (/[A-Z]{2,3}[a-z]?\d{11,12}(?!\d)/.test(all)) p.push("夾代碼");
   const qp = plain(q.question).trim();
   if (qp.replace(/[（(][\s　]*[）)]/g, "").trim().length < 2 && !hasImg(q.question)) p.push("題幹太短");
   if (FIGURE.test(all.replace(FIGURE_FALSE, "")) && !hasImg(all)) p.push("說有圖沒圖");
   if ((q.subject === "math" || q.subject === "science") && texts.some((t) => LOST_EXPR.test(plain(t)))) p.push("遺失算式");
+  if ((q.subject === "math" || q.subject === "science") && looksDegraded(qp)) p.push("疑似掉字");
   if (q.type === "single_choice") {
     if (q.answer == null) p.push("無答案");
     if (!q.options || q.options.length < 3 || q.options.length > 5) p.push("選項數異常");
