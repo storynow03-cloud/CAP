@@ -22,6 +22,10 @@ web/build/
 data/extracted/
 data/html/
 data/lo-html/
+data/lo-odt/
+data/ole-jobs.json
+data/ole-tables.json
+data/lowres-images.json
 data/lo-test/
 data/lo-test2/
 data/raw/
