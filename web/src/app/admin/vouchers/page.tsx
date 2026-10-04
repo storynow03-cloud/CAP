@@ -50,7 +50,7 @@ export default function AdminVouchersPage() {
         <h1 className="text-xl font-bold">💵 現金券・特權券兌換</h1>
         <Link href="/admin" className="text-sm text-indigo-600">← 返回管理後台</Link>
       </div>
-      <p className="text-sm text-slate-500">孩子在商城用金幣兌換現金券(10 金幣 = 1 元)或特權券。給孩子現金/兌現特權後按「已發放」。特權券要在「商城管理」啟用才會出現在商城。</p>
+      <p className="text-sm text-slate-500">孩子在商城用金幣兌換現金券(100 金幣 = 1 元)或特權券。給孩子現金/兌現特權後按「已發放」。特權券要在「商城管理」啟用才會出現在商城。</p>
       <div className="flex items-center gap-2">
         {(["pending", "all"] as const).map((s) => (
           <button key={s} onClick={() => setStatus(s)}

@@ -21,6 +21,24 @@ export async function requireStaff() {
   return { ok: true as const, user };
 }
 
+/** 角色:teacher/parent = L1 管理者(全部管理功能);guardian = L2 家長(看學習狀況、發放獎勵) */
+export const STAFF_ROLES = ["teacher", "parent"];
+export const VIEWER_ROLES = ["teacher", "parent", "guardian"];
+
+/** 驗證呼叫者是 L1 或 L2 家長(看學習狀況、發放獎勵用) */
+export async function requireViewer() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, status: 401, error: "未登入" };
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  if (!profile || !VIEWER_ROLES.includes(profile.role)) {
+    return { ok: false as const, status: 403, error: "需要家長權限" };
+  }
+  return { ok: true as const, user, role: profile.role as string };
+}
+
 /**
  * 驗證已登入並回傳角色。學生自己的操作(上傳自己的考卷、做補強題)用這個;
  * 要代替別人操作時再另外檢查 isStaff。

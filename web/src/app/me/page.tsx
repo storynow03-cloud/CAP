@@ -385,14 +385,14 @@ export default function MePage() {
       </section>
 
       {/* 管理者:管理後台入口 */}
-      {(profile.role === "teacher" || profile.role === "parent") && (
+      {["teacher", "parent", "guardian"].includes(profile.role) && (
         <a href="/admin"
           className="flex items-center justify-between rounded-2xl bg-slate-800 px-5 py-4 text-white shadow-sm transition hover:bg-slate-700">
           <span className="flex items-center gap-3">
             <span className="text-2xl">🛠️</span>
             <span>
               <span className="block font-bold">管理後台</span>
-              <span className="block text-xs opacity-70">帳號・商城・夥伴・秘境(管理者)</span>
+              <span className="block text-xs opacity-70">{profile.role === "guardian" ? "看孩子的學習狀況・發放獎勵(家長 L2)" : "帳號・商城・夥伴・秘境(管理者)"}</span>
             </span>
           </span>
           <span className="text-xl">→</span>

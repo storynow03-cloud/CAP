@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireStaff, adminFetch } from "@/lib/supabase/admin";
+import { requireViewer, adminFetch } from "@/lib/supabase/admin";
 import { CHAPTER_COLUMNS } from "@/lib/chapter";
 import { predictCap, type PredictAttempt } from "@/lib/cap-predict";
 
@@ -29,7 +29,7 @@ interface DailyStat { user_id: string; day: string; total: number; correct: numb
 interface Profile { id: string; nickname: string; role: string; xp: number; coins: number; login_streak: number }
 
 export async function GET(req: NextRequest) {
-  const auth = await requireStaff();
+  const auth = await requireViewer();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const userId = req.nextUrl.searchParams.get("userId");

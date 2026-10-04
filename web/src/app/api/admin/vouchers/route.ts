@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
 
 /**
- * 現金券兌換(管理者):孩子在商城用金幣兌換現金券(10 金幣 = 1 元)→ 這裡列出 → 家長給現金後按「已發放」。
+ * 現金券兌換(管理者):孩子在商城用金幣兌換現金券(100 金幣 = 1 元)→ 這裡列出 → 家長給現金後按「已發放」。
  * GET   ?status=pending|all  → 兌換紀錄(附暱稱)
  * PATCH { id, action }       → paid 已發放 / cancelled 取消並退回金幣
  */

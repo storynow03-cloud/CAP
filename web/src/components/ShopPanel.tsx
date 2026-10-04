@@ -49,6 +49,8 @@ export default function ShopPanel() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   // 已兌換、等爸媽發放的現金券
+  // 爸媽發的獎勵
+  const [gifts, setGifts] = useState<{ id: number; kind: string; item_key: string | null; coins: number; note: string | null; created_at: string }[]>([]);
   const [vouchers, setVouchers] = useState<{ id: number; item_key: string; amount: number; status: string; created_at: string }[]>([]);
 
   const load = useCallback(async () => {
@@ -69,6 +71,9 @@ export default function ShopPanel() {
     const { data: vs } = await supabase.from("voucher_redemptions").select("id,item_key,amount,status,created_at")
       .eq("user_id", uid).order("created_at", { ascending: false }).limit(10);
     setVouchers(vs ?? []);
+    const { data: gs } = await supabase.from("reward_grants").select("id,kind,item_key,coins,note,created_at")
+      .eq("user_id", uid).order("id", { ascending: false }).limit(5);
+    setGifts(gs ?? []);
     setLoading(false);
   }, []);
 
@@ -204,11 +209,27 @@ export default function ShopPanel() {
         </section>
       )}
 
+      {/* 爸媽發的獎勵 */}
+      {gifts.length > 0 && (
+        <section className="rounded-2xl bg-pink-50 p-4 ring-2 ring-pink-200">
+          <h3 className="mb-2 font-bold">🎁 爸媽送你的獎勵</h3>
+          <div className="space-y-1 text-sm">
+            {gifts.map((g) => (
+              <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-white/80 px-3 py-1.5">
+                <span className="font-semibold">{g.kind === "coins" ? `🪙 ${g.coins} 金幣` : rows.find((r) => r.key === g.item_key)?.label ?? "禮物"}</span>
+                {g.note && <span className="text-slate-600">「{g.note}」</span>}
+                <span className="ml-auto text-xs text-slate-400">{new Date(g.created_at).toLocaleDateString("zh-TW")}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* 現金券:金幣 10:1 換新台幣,兌換後由爸媽發放 */}
       {rows.some((r) => r.type === "voucher") && (
         <section className="rounded-2xl bg-gradient-to-br from-emerald-50 to-lime-50 p-4 ring-2 ring-emerald-200">
           <h3 className="font-bold">💵 現金券</h3>
-          <p className="mb-3 text-xs text-slate-500">10 金幣 = 1 元。兌換後在下面看得到紀錄,找爸爸媽媽領取現金。</p>
+          <p className="mb-3 text-xs text-slate-500">100 金幣 = 1 元。兌換後在下面看得到紀錄,找爸爸媽媽領取現金。</p>
           <div className="grid grid-cols-3 gap-3">
             {rows.filter((r) => r.type === "voucher").sort((a, b) => a.price - b.price).map((item) => (
               <div key={item.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">

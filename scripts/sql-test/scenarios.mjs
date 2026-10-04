@@ -5,6 +5,7 @@ import { db } from "./setup.mjs";
 const A = "00000000-0000-0000-0000-00000000000a";
 const B = "00000000-0000-0000-0000-00000000000b";
 const P = "00000000-0000-0000-0000-00000000000c";
+const G = "00000000-0000-0000-0000-00000000000d"; // L2 家長(guardian)
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; console.log("  ✅", msg); } else { fail++; console.log("  ❌", msg); } };
 
@@ -25,12 +26,13 @@ async function expectError(fn, needle, msg) {
 }
 
 // ── 準備資料 ──
-for (const [id, name] of [[A, "小A"], [B, "小B"], [P, "家長"]]) {
+for (const [id, name] of [[A, "小A"], [B, "小B"], [P, "家長"], [G, "L2家長"]]) {
   await db.query("insert into auth.users(id, email, raw_user_meta_data) values ($1, $2, $3)", [id, `${name}@t`, { nickname: name }]);
 }
 await db.exec(`update profiles set role = 'student', coins = 1000 where id = '${A}';
   update profiles set role = 'student', coins = 300 where id = '${B}';
   update profiles set role = 'parent' where id = '${P}';
+  update profiles set role = 'guardian' where id = '${G}';
   insert into friendships(user_id, friend_id) values ('${A}', '${B}'), ('${B}', '${A}');`);
 for (let i = 0; i < 12; i++) {
   await db.query(`insert into questions(id, subject, topic, difficulty, type, question, options, answer, needs_review)
@@ -44,16 +46,18 @@ const pa = (await db.query("select coins, xp, role, nickname from profiles where
 ok(pa.coins === 1000 && pa.xp === 0 && pa.role === "student", `孩子直接改金幣/經驗值/角色無效(coins=${pa.coins}, role=${pa.role})`);
 ok(pa.nickname === "改名成功", "孩子改暱稱仍然可以");
 
-console.log("② 現金券");
+console.log("② 現金券(100 金幣 = 1 元)");
+await db.exec(`update profiles set coins = 5500 where id = '${A}'`);
 await as(A, "select * from buy_item('voucher_50')");
-ok(await coins(A) === 500, `買 50 元現金券扣 500 金幣(剩 ${await coins(A)})`);
+ok(await coins(A) === 500, `買 50 元現金券扣 5,000 金幣(剩 ${await coins(A)})`);
 const v = (await db.query("select * from voucher_redemptions where user_id = $1", [A])).rows;
 ok(v.length === 1 && v[0].amount === 50 && v[0].status === "pending", "產生一筆待發放 50 元紀錄");
 await expectError(() => as(A, "select * from buy_item('voucher_500')"), "NOT_ENOUGH_COINS", "金幣不夠買 500 元券");
 await expectError(() => as(A, "select * from buy_item('priv_game30')"), "INACTIVE", "特權券預設下架買不到");
 await expectError(() => as(B, `select handle_voucher(${v[0].id}, 'paid')`), "需要管理者權限", "孩子不能自己標記已發放");
 await as(P, `select handle_voucher(${v[0].id}, 'cancelled')`);
-ok(await coins(A) === 1000, `家長取消 → 退回 500 金幣(剩 ${await coins(A)})`);
+ok(await coins(A) === 5500, `家長取消 → 退回 5,000 金幣(剩 ${await coins(A)})`);
+await db.exec(`update profiles set coins = 10000 where id = '${A}'`);
 await as(A, "select * from buy_item('voucher_100')");
 const v2 = (await db.query("select id from voucher_redemptions where user_id = $1 and status = 'pending'", [A])).rows[0];
 await as(P, `select handle_voucher(${v2.id}, 'paid')`);
@@ -133,6 +137,24 @@ ok((await db.query("select count(*)::int as n from shop_items where key = 'title
 await expectError(() => as(A, `select audit_restore(${log.id})`), "需要管理者權限", "孩子不能還原");
 const seen = (await as(A, "select count(*)::int as n from audit_log")).rows[0].n;
 ok(seen === 0, "孩子看不到操作紀錄");
+
+console.log("⑦ L2 家長(guardian)");
+const gc0 = await coins(A);
+await as(G, `select grant_reward('${A}', 'coins', null, 300, '考試進步')`);
+ok(await coins(A) === gc0 + 300, "L2 發放 300 金幣給孩子");
+await as(G, `select grant_reward('${A}', 'item', 'priv_game30', 0, '週末獎勵')`);
+ok((await db.query("select count(*)::int n from voucher_redemptions where user_id = $1 and item_key = 'priv_game30' and status = 'pending'", [A])).rows[0].n === 1, "L2 發放特權券(即使商城下架)→ 孩子得到待兌現券");
+await as(G, `select grant_reward('${A}', 'item', 'frame_fire')`);
+ok((await db.query("select count(*)::int n from user_items where user_id = $1 and key = 'frame_fire'", [A])).rows[0].n === 1, "L2 發放裝扮 → 孩子直接擁有");
+const grants = (await as(A, "select kind, coins, note from reward_grants order by id")).rows;
+ok(grants.length === 3 && grants[0].note === "考試進步", "孩子看得到自己收到的獎勵與留言");
+await expectError(() => as(A, `select grant_reward('${B}', 'coins', null, 100)`), "需要家長權限", "孩子不能發獎勵給別人");
+await expectError(() => as(G, `select grant_reward('${P}', 'coins', null, 100)`), "NOT_STUDENT", "不能發給非學生帳號");
+await expectError(() => as(G, `select grant_reward('${A}', 'coins', null, 999999)`), "BAD_COINS", "單次金幣上限 50,000");
+await expectError(() => as(G, `select handle_voucher(1, 'paid')`), "需要管理者權限", "L2 不能處理兌換(限 L1)");
+await expectError(() => as(G, `select audit_restore(1)`), "需要管理者權限", "L2 不能還原操作紀錄");
+ok((await as(G, "select count(*)::int n from audit_log")).rows[0].n === 0, "L2 看不到操作紀錄");
+await expectError(() => db.query(`update profiles set role = 'admin' where id = '${G}'`), "profiles_role_check", "角色只能是四種之一");
 
 console.log(`\n結果:${pass} 通過、${fail} 失敗`);
 process.exit(fail ? 1 : 0);

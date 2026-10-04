@@ -12,7 +12,7 @@ interface UserRow {
   created_at: string;
 }
 
-const ROLE_LABEL: Record<string, string> = { student: "學生", parent: "家長", teacher: "老師" };
+const ROLE_LABEL: Record<string, string> = { student: "學生", parent: "家長 L1", guardian: "家長 L2", teacher: "老師" };
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -94,7 +94,8 @@ export default function AdminUsersPage() {
           <select className="rounded-lg border border-slate-300 px-3 py-2"
             value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
             <option value="student">學生</option>
-            <option value="parent">家長(可管理)</option>
+            <option value="parent">家長 L1(可管理全部)</option>
+            <option value="guardian">家長 L2(看學習狀況・發獎勵)</option>
             <option value="teacher">老師(可管理)</option>
           </select>
         </div>
@@ -115,7 +116,8 @@ export default function AdminUsersPage() {
                   <select className="rounded-lg border border-slate-300 px-3 py-2"
                     value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>
                     <option value="student">學生</option>
-                    <option value="parent">家長</option>
+                    <option value="parent">家長 L1</option>
+                    <option value="guardian">家長 L2</option>
                     <option value="teacher">老師</option>
                   </select>
                   <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="重設密碼(留空不改)"

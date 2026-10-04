@@ -38,7 +38,7 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPE_HINT: Record<string, string> = {
   theme: "內容填色碼,如 #4f46e5",
   frame: "內容填一個 emoji,如 ⭐",
-  voucher: "內容填新台幣金額,如 100(價格建議 = 金額 × 10)",
+  voucher: "內容填新台幣金額,如 100(價格 = 金額 × 100,兌換比例 100 金幣 = 1 元)",
   privilege: "內容填一個 emoji,如 🎮;兌換後由家長在「現金券兌換」頁兌現",
   nameplate: "內容填 CSS 漸層,如 linear-gradient(135deg,#f97316,#ec4899)",
   title: "內容填顯示文字(可含 emoji),如 🌱 新星",
