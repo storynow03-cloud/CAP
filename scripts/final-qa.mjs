@@ -47,7 +47,9 @@ for (const q of rows) {
     if (!imgSeen.has(src)) {
       imgSeen.add(src);
     }
-    if (!fs.existsSync(path.join(ROOT, "web", "public", src))) add("缺圖:圖檔不存在", q, src);
+    const file = path.join(ROOT, "web", "public", src);
+    if (!fs.existsSync(file)) add("缺圖:圖檔不存在", q, src);
+    else if (!["89504e47", "47494638", "ffd8ff", "52494646"].some((m) => fs.readFileSync(file).subarray(0, 4).toString("hex").startsWith(m))) add("缺圖:檔案不是圖片(破圖)", q, src);
     else if (!tracked.has(src)) add("缺圖:圖檔沒進 git(正式站沒有)", q, src);
   }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
+import { loginNameError, toLoginEmail } from "@/lib/login-name";
 
 // 讀取所有帳號(合併 auth 的 email 與 profiles 的暱稱/角色/XP)
 export async function GET() {
@@ -27,16 +28,23 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireStaff();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const { email, password, nickname, role } = await req.json();
-  if (!email || !password || password.length < 6)
-    return NextResponse.json({ error: "需要 email 與至少 6 碼密碼" }, { status: 400 });
+  // email 欄位可以填中文姓名(換算成固定的 email,登入時打中文即可)或 email
+  const { email: loginName, password, nickname, role } = await req.json();
+  const nameErr = loginNameError(loginName ?? "");
+  if (nameErr) return NextResponse.json({ error: nameErr }, { status: 400 });
+  if (!password || password.length < 6) return NextResponse.json({ error: "密碼至少 6 碼" }, { status: 400 });
+  const email = toLoginEmail(loginName);
+  const isName = !String(loginName).includes("@");
 
   const r = await adminFetch("/auth/v1/admin/users", {
     method: "POST",
-    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { nickname: nickname || email.split("@")[0] } }),
+    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { nickname: nickname || (isName ? String(loginName).trim() : email.split("@")[0]) } }),
   });
   const d = await r.json();
-  if (!d.id) return NextResponse.json({ error: d.msg || d.message || "建立失敗" }, { status: 400 });
+  if (!d.id) {
+    const m = d.msg || d.message || "建立失敗";
+    return NextResponse.json({ error: /already/i.test(m) ? "這個登入名稱已經有人用了" : m }, { status: 400 });
+  }
   if (role && role !== "student") {
     await adminFetch(`/rest/v1/profiles?id=eq.${d.id}`, { method: "PATCH", body: JSON.stringify({ role }) });
   }
@@ -47,8 +55,22 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const auth = await requireStaff();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const { id, nickname, role, password } = await req.json();
+  const { id, nickname, role, password, loginName } = await req.json();
   if (!id) return NextResponse.json({ error: "缺少 id" }, { status: 400 });
+
+  // 改登入名稱(中文姓名或 email)
+  if (loginName) {
+    const nameErr = loginNameError(loginName);
+    if (nameErr) return NextResponse.json({ error: nameErr }, { status: 400 });
+    const r = await adminFetch(`/auth/v1/admin/users/${id}`, {
+      method: "PUT", body: JSON.stringify({ email: toLoginEmail(loginName), email_confirm: true }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      const m = d.msg || d.message || "更新登入名稱失敗";
+      return NextResponse.json({ error: /already/i.test(m) ? "這個登入名稱已經有人用了" : m }, { status: 400 });
+    }
+  }
 
   if (password) {
     if (password.length < 6) return NextResponse.json({ error: "密碼至少 6 碼" }, { status: 400 });

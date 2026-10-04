@@ -8,6 +8,11 @@
 //   4. 乘上該科會考選擇題題數 → 預估錯幾題 → 等級。A++ 用 FULL_EXAM_SPEC 的容錯數
 //      (與全真模考一致),其餘依答對率(與模擬考 gradeOf 一致)。
 //   5. 可信度看題數;同時列出還沒練到的冊別(只練七上的孩子,估出來的等級只代表七上範圍)。
+//   6. 每科至少 MIN_QUESTIONS 題才給等級(太少題數估出 A+ 沒有意義),不足的科目不算進積分。
+//
+// 兩種積分(2026-10-04 使用者要求):
+//   練習會考積分 —— 平常練習的題目(不含會考真題),代表「練過的範圍」程度
+//   真題會考積分 —— 只算歷屆會考真題(來源分類含「國中教育會考」),範圍 = 整個會考,最接近真實成績
 
 import { FULL_EXAM_SPEC } from "@/lib/types";
 
@@ -15,12 +20,19 @@ export interface PredictAttempt {
   question_id: string;
   is_correct: boolean;
   created_at: string;
-  questions: { subject: string; difficulty: number | null; volume?: string | null; type?: string | null } | null;
+  questions: { subject: string; difficulty: number | null; volume?: string | null; type?: string | null; source?: string | null } | null;
 }
+
+export const MIN_QUESTIONS = 20;
+// 歷屆會考真題:來源分類含「國中教育會考」(英文「會考特色題」是類題,不算)
+export const isRealExam = (source?: string | null) => (source ?? "").split("/")[0].includes("國中教育會考");
+// 會考等級 → 積分(常見換算 A++=7…C=1,五科滿分 35;實際依各區免試入學簡章)
+export const GRADE_POINT: Record<string, number> = { "A++": 7, "A+": 6, A: 5, "B++": 4, "B+": 3, B: 2, C: 1 };
 
 export interface SubjectPrediction {
   subject: string;
-  grade: string;
+  /** 題數未達 MIN_QUESTIONS 時為 null(不給等級、不算積分) */
+  grade: string | null;
   /** 預估在真實會考答對率(0~1) */
   rate: number;
   /** 預估錯幾題 / 全卷題數 */
@@ -50,11 +62,13 @@ export function gradeFromRate(rate: number, wrong: number, aPlusMaxWrong: number
   return "C";
 }
 
-export function predictCap(attempts: PredictAttempt[]): SubjectPrediction[] {
+export function predictCap(attempts: PredictAttempt[], scope: "all" | "practice" | "real" = "all"): SubjectPrediction[] {
   // 每題第一次作答
   const first = new Map<string, PredictAttempt>();
   for (const a of [...attempts].sort((x, y) => x.created_at.localeCompare(y.created_at))) {
     if (!a.questions || (a.questions.type && a.questions.type !== "single_choice")) continue;
+    if (scope === "real" && !isRealExam(a.questions.source)) continue;
+    if (scope === "practice" && isRealExam(a.questions.source)) continue;
     if (!first.has(a.question_id)) first.set(a.question_id, a);
   }
   const bySubject = new Map<string, PredictAttempt[]>();
@@ -81,7 +95,7 @@ export function predictCap(attempts: PredictAttempt[]): SubjectPrediction[] {
     const volumes = [...new Set(list.map((a) => Number(a.questions!.volume?.match(/\d+/)?.[0])).filter((v) => v >= 1 && v <= 6))].sort();
     out.push({
       subject,
-      grade: gradeFromRate(rate, wrong, spec.aPlusMaxWrong),
+      grade: n >= MIN_QUESTIONS ? gradeFromRate(rate, wrong, spec.aPlusMaxWrong) : null,
       rate,
       wrong,
       examCount: spec.count,
@@ -93,4 +107,10 @@ export function predictCap(attempts: PredictAttempt[]): SubjectPrediction[] {
   }
   const order = ["chinese", "english", "math", "science", "social"];
   return out.sort((a, b) => order.indexOf(a.subject) - order.indexOf(b.subject));
+}
+
+/** 積分加總:只算有等級的科目 */
+export function capScore(list: SubjectPrediction[]) {
+  const graded = list.filter((p) => p.grade);
+  return { points: graded.reduce((s, p) => s + (GRADE_POINT[p.grade!] ?? 0), 0), graded: graded.length };
 }

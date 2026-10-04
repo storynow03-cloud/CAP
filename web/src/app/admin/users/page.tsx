@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fromLoginEmail } from "@/lib/login-name";
 
 interface UserRow {
   id: string;
@@ -22,7 +23,7 @@ export default function AdminUsersPage() {
   // 新增表單
   const [form, setForm] = useState({ email: "", password: "", nickname: "", role: "student" });
   const [editing, setEditing] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ nickname: "", role: "student", password: "" });
+  const [edit, setEdit] = useState({ nickname: "", role: "student", password: "", loginName: "" });
 
   async function load() {
     setLoading(true);
@@ -47,6 +48,8 @@ export default function AdminUsersPage() {
   async function saveEdit(id: string) {
     const body: Record<string, unknown> = { id, nickname: edit.nickname, role: edit.role };
     if (edit.password) body.password = edit.password;
+    const cur = users.find((u) => u.id === id);
+    if (edit.loginName.trim() && edit.loginName.trim() !== fromLoginEmail(cur?.email)) body.loginName = edit.loginName.trim();
     const r = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json();
     if (!r.ok) { setMsg("更新失敗:" + d.error); return; }
@@ -56,7 +59,7 @@ export default function AdminUsersPage() {
   }
 
   async function remove(u: UserRow) {
-    if (!confirm(`確定刪除 ${u.email}?此帳號的所有學習紀錄都會一併刪除,無法復原。`)) return;
+    if (!confirm(`確定刪除 ${fromLoginEmail(u.email)}?此帳號的所有學習紀錄都會一併刪除,無法復原。`)) return;
     const r = await fetch("/api/admin/users", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: u.id }) });
     const d = await r.json();
     if (!r.ok) { setMsg("刪除失敗:" + d.error); return; }
@@ -85,11 +88,11 @@ export default function AdminUsersPage() {
       <section className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="mb-3 font-bold">➕ 新增帳號</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="Email"
+          <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="登入名稱:中文姓名(或 Email)"
             value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="密碼(至少 6 碼)"
             value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="暱稱"
+          <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="暱稱(留空 = 用登入名稱)"
             value={form.nickname} onChange={(e) => setForm({ ...form, nickname: e.target.value })} />
           <select className="rounded-lg border border-slate-300 px-3 py-2"
             value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -99,6 +102,7 @@ export default function AdminUsersPage() {
             <option value="teacher">老師(可管理)</option>
           </select>
         </div>
+        <p className="mt-2 text-xs text-slate-500">登入名稱可以直接用中文姓名(最多 10 個字),登入時在登入頁打中文姓名 + 密碼即可。</p>
         <button onClick={create} className="mt-3 w-full rounded-lg accent-bg py-2.5 font-semibold text-white">建立帳號</button>
       </section>
 
@@ -109,8 +113,9 @@ export default function AdminUsersPage() {
           <div key={u.id} className="rounded-2xl bg-white p-4 shadow-sm">
             {editing === u.id ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-500">{u.email}</p>
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="登入名稱(中文姓名或 Email)"
+                    value={edit.loginName} onChange={(e) => setEdit({ ...edit, loginName: e.target.value })} />
                   <input className="rounded-lg border border-slate-300 px-3 py-2" placeholder="暱稱"
                     value={edit.nickname} onChange={(e) => setEdit({ ...edit, nickname: e.target.value })} />
                   <select className="rounded-lg border border-slate-300 px-3 py-2"
@@ -135,10 +140,10 @@ export default function AdminUsersPage() {
                     {u.nickname || "(無暱稱)"}
                     <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{ROLE_LABEL[u.role || "student"]}</span>
                   </p>
-                  <p className="truncate text-xs text-slate-400">{u.email}|XP {u.xp ?? 0}{u.confirmed ? "" : "|未驗證"}</p>
+                  <p className="truncate text-xs text-slate-400">登入:{fromLoginEmail(u.email)}|XP {u.xp ?? 0}{u.confirmed ? "" : "|未驗證"}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <button onClick={() => { setEditing(u.id); setEdit({ nickname: u.nickname || "", role: u.role || "student", password: "" }); }}
+                  <button onClick={() => { setEditing(u.id); setEdit({ nickname: u.nickname || "", role: u.role || "student", password: "", loginName: fromLoginEmail(u.email) }); }}
                     className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm">編輯</button>
                   <button onClick={() => remove(u)} className="rounded-lg bg-rose-50 px-3 py-1.5 text-sm text-rose-600">刪除</button>
                 </div>

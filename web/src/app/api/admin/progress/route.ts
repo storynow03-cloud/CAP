@@ -55,12 +55,13 @@ export async function GET(req: NextRequest) {
     const history: PredictAttempt[] = [];
     for (let off = 0; off < 3000; off += 1000) {
       const page = await json<PredictAttempt[]>(
-        `attempts?user_id=eq.${userId}&select=question_id,is_correct,created_at,questions(subject,difficulty,volume,type)&order=created_at.desc&limit=1000&offset=${off}`
+        `attempts?user_id=eq.${userId}&select=question_id,is_correct,created_at,questions(subject,difficulty,volume,type,source)&order=created_at.desc&limit=1000&offset=${off}`
       );
       history.push(...page);
       if (page.length < 1000) break;
     }
-    const predictions = predictCap(history);
+    // 兩種會考積分:平常練習 / 歷屆真題
+    const predictions = { practice: predictCap(history, "practice"), real: predictCap(history, "real") };
     const wrong = await adminFetch(
       `/rest/v1/wrong_book?user_id=eq.${userId}&status=eq.active&select=question_id&limit=1`,
       { headers: { Prefer: "count=exact" } }

@@ -7,7 +7,7 @@ import { subjectLabel } from "@/lib/types";
 
 /**
  * 排行榜:
- *   兩個「積分」榜(/api/leaderboard,後端彙整作答):🎯 會考積分、💪 練習積點
+ *   兩個「會考積分」榜(/api/leaderboard,後端彙整作答):📘 練習會考積分、🎯 真題會考積分(都是 /35)
  *   八個「成就」榜(get_leaderboard RPC):金幣、等級、刷題數、本週經驗值、正確率、連續登入、錯題克服、PK 勝場
  */
 
@@ -16,23 +16,25 @@ interface Row {
   coins: number; xp: number; total_answered: number; week_xp: number; acc30: number | null; answered30: number;
   login_streak: number; overcome: number; duel_wins: number; boss_tiers: number;
 }
+type Grades = { subject: string; grade: string | null; questions: number }[];
 interface ScoreRow {
   user_id: string; nickname: string; avatar_url: string | null; is_me: boolean;
-  capPoints: number; capGrades: { subject: string; grade: string; questions: number }[];
-  volumes: number[]; practicePoints: number; practiceCorrect: number;
+  practice: { points: number; graded: number; grades: Grades; volumes: number[] };
+  real: { points: number; graded: number; grades: Grades };
 }
 
 type Board = { key: string; emoji: string; label: string; unit: string; hint: string; kind: "score" | "rpc"; value: (r: never) => number | null };
 const GRADE = ["", "七上", "七下", "八上", "八下", "九上", "九下"];
 
 const SCORE_BOARDS: Board[] = [
-  { key: "cap", emoji: "🎯", label: "會考積分", unit: "/35", kind: "score",
-    hint: "依做過的題目預估會考等級(A++=7…C=1,五科滿分 35)。只算做過的範圍,多寫會考真題會越準!",
-    value: ((r: ScoreRow) => r.capPoints) as (r: never) => number },
-  { key: "practice", emoji: "💪", label: "練習積點", unit: "點", kind: "score",
-    hint: "近 30 天認真答對的題目難度加總(★1~★5,作答 ≥ 5 秒、同題同日只算一次)。國一、國二認真練也能上榜!",
-    value: ((r: ScoreRow) => r.practicePoints) as (r: never) => number },
+  { key: "practice", emoji: "📘", label: "練習會考積分", unit: "/35", kind: "score",
+    hint: "平常練習換算成會考積分(A++=7…C=1,五科滿分 35),代表練過的範圍掌握得如何。國一、國二認真練也能上榜!每科至少 20 題才算。",
+    value: ((r: ScoreRow) => r.practice.points) as (r: never) => number },
+  { key: "real", emoji: "🎯", label: "真題會考積分", unit: "/35", kind: "score",
+    hint: "只算歷屆會考真題換算的積分,範圍是整個會考,最接近真正的會考成績。去寫會考真題就能上榜!每科至少 20 題才算。",
+    value: ((r: ScoreRow) => r.real.points) as (r: never) => number },
 ];
+const gradeText = (g: Grades) => g.length ? g.map((x) => `${subjectLabel(x.subject)} ${x.grade ?? `(${x.questions}題)`}`).join("・") : "還沒有作答";
 const RPC_BOARDS: Board[] = ([
   { key: "coins", emoji: "🪙", label: "金幣最多", unit: "金幣", hint: "目前持有的金幣", value: (r: Row) => r.coins },
   { key: "level", emoji: "⭐", label: "等級最高", unit: "級", hint: "依累積經驗值換算", value: (r: Row) => levelFromXp(r.xp).level },
@@ -102,14 +104,14 @@ export default function LeaderboardPage() {
                 <span className="ml-0.5 text-xs font-normal text-slate-400">{board.unit}</span>
               </span>
             </div>
-            {board.key === "cap" && "capGrades" in r && (
+            {board.key === "practice" && "practice" in r && (
               <p className="mt-1 pl-11 text-[11px] text-slate-500">
-                {r.capGrades.length ? r.capGrades.map((g) => `${subjectLabel(g.subject)} ${g.grade}`).join("・") : "還沒有作答"}
-                {r.volumes.length > 0 && `|練過:${r.volumes.map((n) => GRADE[n]).join("、")}`}
+                已評 {r.practice.graded} 科|{gradeText(r.practice.grades)}
+                {r.practice.volumes.length > 0 && `|練過:${r.practice.volumes.map((n) => GRADE[n]).join("、")}`}
               </p>
             )}
-            {board.key === "practice" && "practiceCorrect" in r && (
-              <p className="mt-1 pl-11 text-[11px] text-slate-500">近 30 天認真答對 {r.practiceCorrect} 題</p>
+            {board.key === "real" && "real" in r && (
+              <p className="mt-1 pl-11 text-[11px] text-slate-500">已評 {r.real.graded} 科|{gradeText(r.real.grades)}</p>
             )}
           </div>
         ))}

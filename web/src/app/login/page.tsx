@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { toLoginEmail } from "@/lib/login-name";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,8 +33,9 @@ export default function LoginPage() {
         router.refresh();
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMsg(`登入失敗:${error.message}`);
+      // 可以打中文姓名(換算成固定的 email)或直接打 email
+      const { error } = await supabase.auth.signInWithPassword({ email: toLoginEmail(email), password });
+      if (error) setMsg(error.message.includes("Invalid login") ? "登入失敗:姓名(或 Email)或密碼不對" : `登入失敗:${error.message}`);
       else {
         router.push("/");
         router.refresh();
@@ -57,9 +59,10 @@ export default function LoginPage() {
           />
         )}
         <input
-          type="email"
+          type={mode === "signup" ? "email" : "text"}
           className="w-full rounded-lg border border-slate-300 px-3 py-2"
-          placeholder="Email"
+          placeholder={mode === "signup" ? "Email" : "姓名或 Email"}
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

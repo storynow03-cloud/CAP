@@ -9,6 +9,7 @@ import { CHAPTER_COLUMNS } from "@/lib/chapter";
  * GET  ?id=xxx                            → 單一題目完整內容
  * PATCH { id, fields }                    → 修改題目(題幹/選項/答案/詳解/隱藏狀態)
  *
+ * 儲存後,這題所有待處理的回報自動結案(放回題庫 = 已修正、隱藏 = 已隱藏)。
  * 修改會帶 x-actor 標頭,操作紀錄日誌(audit_log)記得是誰改的,改錯可以從 /admin/audit 還原。
  */
 
@@ -70,5 +71,11 @@ export async function PATCH(req: NextRequest) {
   });
   if (!r.ok) return NextResponse.json({ error: `儲存失敗:${await r.text()}` }, { status: 500 });
   const [saved] = await r.json();
+  // 題目修好(或決定隱藏)後,這題所有待處理的回報自動結案,不用再到「題目回報」手動處理
+  await adminFetch(`/rest/v1/question_reports?question_id=eq.${encodeURIComponent(id)}&status=eq.open`, {
+    method: "PATCH",
+    headers: { "x-actor": auth.user.id, Prefer: "return=minimal" },
+    body: JSON.stringify({ status: saved?.needs_review ? "hidden" : "fixed", resolved_at: new Date().toISOString(), resolved_by: auth.user.id }),
+  });
   return NextResponse.json({ ok: true, question: saved });
 }

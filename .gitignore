@@ -30,6 +30,8 @@ data/lo-test/
 data/lo-test2/
 data/raw/
 data/eq-text/
+data/image-screen*.json
+data/image-review/
 data/questions/*.bak
 data/questions/*.html.json
 
@@ -51,3 +53,4 @@ Thumbs.db
 
 # Claude Code 本機權限設定(機器專屬,可能含指令中的敏感值,不進 git)
 .claude/settings.local.json
+data/rerender/

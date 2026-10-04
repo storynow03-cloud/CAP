@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import ChapterTag from "@/components/ChapterTag";
 import { SUBJECT_GROUPS, chapterText, fetchTopicChapters, subjectGroup, unitKey, type ChapterFields } from "@/lib/chapter";
 import type { SubjectPrediction } from "@/lib/cap-predict";
+import CapScorePanel from "@/components/CapScorePanel";
 import { stripHtml } from "@/lib/html";
 
 /** 管理後台「學習狀況」展開後的學生詳細:會考等級預估、作答量、弱點單元、最近作答(可篩選) */
@@ -24,71 +25,14 @@ export interface Detail {
     questions: (ChapterFields & { subject: string; topic: string; question: string }) | null;
   }[];
   wrongCount: number;
-  predictions: SubjectPrediction[];
+  predictions: { practice: SubjectPrediction[]; real: SubjectPrediction[] };
 }
 
-const GRADE_COLOR: Record<string, string> = {
-  "A++": "bg-emerald-600 text-white", "A+": "bg-emerald-500 text-white", A: "bg-emerald-400 text-white",
-  "B++": "bg-amber-500 text-white", "B+": "bg-amber-400 text-white", B: "bg-amber-300 text-amber-900", C: "bg-rose-500 text-white",
-};
-const GRADE_LABEL = ["", "七上", "七下", "八上", "八下", "九上", "九下"];
 
 export const MODE_LABEL: Record<string, string> = {
   practice: "練習", challenge: "挑戰", exam: "模考", review: "複習",
 };
 
-
-// 會考等級 → 積分(常見換算:A++ 7 … C 1,五科滿分 35;實際依各區免試入學簡章)
-const GRADE_POINT: Record<string, number> = { "A++": 7, "A+": 6, A: 5, "B++": 4, "B+": 3, B: 2, C: 1 };
-const ALL_SUBJECTS = ["chinese", "english", "math", "science", "social"];
-
-function Predictions({ list }: { list: SubjectPrediction[] }) {
-  if (!list.length) return <p className="text-sm text-slate-400">還沒有選擇題作答紀錄,無法預估</p>;
-  const points = list.reduce((s, p) => s + (GRADE_POINT[p.grade] ?? 0), 0);
-  const missing = ALL_SUBJECTS.filter((k) => !list.some((p) => p.subject === k));
-  const weak = list.filter((p) => p.confidence === "資料不足" || p.confidence === "低").length;
-  return (
-    <div className="space-y-2">
-    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-3 text-white">
-      <span className="text-sm">預估會考積分</span>
-      <span className="text-3xl font-black">{points}<span className="text-base font-normal opacity-80"> / 35</span></span>
-      <span className="text-xs opacity-90">
-        {list.map((p) => `${subjectLabel(p.subject)} ${p.grade}`).join("・")}
-        {missing.length > 0 && `・尚未作答:${missing.map(subjectLabel).join("、")}(以 0 分計)`}
-      </span>
-      <span className="ml-auto text-[11px] opacity-80">
-        換算 A++=7…C=1(常見規則,實際依各區簡章){weak > 0 && `・${weak} 科題數不足,僅供參考`}
-      </span>
-    </div>
-    <div className="grid gap-2 sm:grid-cols-2">
-      {list.map((p) => {
-        const missing = [1, 2, 3, 4, 5, 6].filter((v) => !p.volumes.includes(v)).map((v) => GRADE_LABEL[v]);
-        return (
-          <div key={p.subject} className="rounded-xl bg-white p-3 shadow-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold">{subjectLabel(p.subject)}</span>
-              <span className={`rounded-lg px-2 py-0.5 text-lg font-black ${GRADE_COLOR[p.grade] ?? "bg-slate-200"}`}>{p.grade}</span>
-              <span className="text-xs text-slate-500">
-                預估答對 {Math.round(p.rate * 100)}%・{p.examCount} 題約錯 {p.wrong} 題
-              </span>
-              <span className={`ml-auto rounded px-1.5 py-0.5 text-[11px] ${p.confidence === "高" ? "bg-emerald-100 text-emerald-700" : p.confidence === "中" ? "bg-sky-100 text-sky-700" : "bg-slate-100 text-slate-500"}`}>
-                可信度 {p.confidence}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-slate-500">
-              依據:做過 {p.questions} 題(只算第一次作答)・
-              {p.buckets.map((b) => `${b.label} ${b.n} 題${b.n ? ` 對 ${Math.round((b.correct / b.n) * 100)}%` : ""}`).join("、")}
-            </p>
-            {missing.length > 0 && (
-              <p className="mt-0.5 text-[11px] text-amber-600">尚未練到:{missing.join("、")}(這些範圍不在預估內)</p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-    </div>
-  );
-}
 
 export default function StudentDetail({ d }: { d: Detail }) {
   const max = Math.max(1, ...d.daily.map((x) => x.total));
@@ -127,8 +71,8 @@ export default function StudentDetail({ d }: { d: Detail }) {
     <div className="space-y-4">
       {/* 會考等級預估 */}
       <div>
-        <p className="mb-1 text-xs font-semibold text-slate-500">🎯 會考等級預估(依做過的題目估計,題目越多越準)</p>
-        <Predictions list={d.predictions ?? []} />
+        <p className="mb-1 text-xs font-semibold text-slate-500">🎯 會考積分預估(練習 / 真題分開算,題目越多越準)</p>
+        <CapScorePanel practice={d.predictions?.practice ?? []} real={d.predictions?.real ?? []} detailed />
       </div>
 
       {/* 近 14 天長條 */}
