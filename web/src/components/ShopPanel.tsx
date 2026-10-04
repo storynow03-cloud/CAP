@@ -48,6 +48,8 @@ export default function ShopPanel() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // 已兌換、等爸媽發放的現金券
+  const [vouchers, setVouchers] = useState<{ id: number; item_key: string; amount: number; status: string; created_at: string }[]>([]);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -64,6 +66,9 @@ export default function ShopPanel() {
     setOwned(new Set((items ?? []).map((i) => i.key)));
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setEq(p as Equipped);
+    const { data: vs } = await supabase.from("voucher_redemptions").select("id,item_key,amount,status,created_at")
+      .eq("user_id", uid).order("created_at", { ascending: false }).limit(10);
+    setVouchers(vs ?? []);
     setLoading(false);
   }, []);
 
@@ -78,6 +83,18 @@ export default function ShopPanel() {
   }
 
   useEffect(() => { load(); }, [load]);
+
+  async function buyVoucher(item: ShopRow) {
+    const isCash = item.type === "voucher";
+    if (!confirm(`確定用 ${item.price} 金幣兌換「${item.label}」?\n兌換後請找爸爸媽媽${isCash ? "領取現金" : "兌現"}。`)) return;
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("buy_item", { p_key: item.key });
+    setBusy(false);
+    if (error) { setMsg(BUY_ERR[error.message] ?? "兌換失敗:" + error.message); return; }
+    setMsg(isCash ? `🎉 已兌換 ${item.label}!請找爸爸媽媽領取 ${item.value} 元` : `🎉 已兌換「${item.label}」!請找爸爸媽媽兌現`);
+    load();
+  }
 
   async function buy(key: string) {
     setBusy(true);
@@ -109,20 +126,18 @@ export default function ShopPanel() {
     if (!eq) return;
     const price = 80;
     if (eq.coins < price) { setMsg("金幣不足 🪙(轉蛋要 80)"); return; }
-    const pool = rows.filter((i) => EQUIP_TYPES.includes(i.type) && !owned.has(i.key));
+    // 扣款與抽獎都在伺服器(gacha_spin),前端不能自己改金幣
     setBusy(true);
     const supabase = createClient();
-    const { data: u } = await supabase.auth.getUser();
-    if (pool.length === 0) {
-      await supabase.from("profiles").update({ coins: eq.coins - price + 40 }).eq("id", u.user!.id);
-      setMsg("你已收集所有裝扮!退回 40 金幣 🪙");
-    } else {
-      const win = pool[Math.floor(Math.random() * pool.length)];
-      await supabase.from("user_items").upsert({ user_id: u.user!.id, key: win.key });
-      await supabase.from("profiles").update({ coins: eq.coins - price }).eq("id", u.user!.id);
-      setMsg(`🎉 轉蛋抽中:${win.label}(${RARITY[rarityOf(win.rarity)].label})!`);
-    }
+    const { data, error } = await supabase.rpc("gacha_spin");
     setBusy(false);
+    if (error) { setMsg(BUY_ERR[error.message] ?? "轉蛋失敗:" + error.message); return; }
+    const r = (data as { won_key: string | null; won_label: string | null; refunded: boolean }[])?.[0];
+    if (!r || r.refunded) setMsg("你已收集所有裝扮!退回 40 金幣 🪙");
+    else {
+      const win = rows.find((i) => i.key === r.won_key);
+      setMsg(`🎉 轉蛋抽中:${r.won_label}${win ? `(${RARITY[rarityOf(win.rarity)].label})` : ""}!`);
+    }
     load();
   }
 
@@ -186,6 +201,58 @@ export default function ShopPanel() {
         <section className="flex flex-wrap gap-2 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
           {eq.boost_xp2x_left > 0 && <span>⚡ XP 加倍生效中,剩 {eq.boost_xp2x_left} 題</span>}
           {eq.boost_coin2x_left > 0 && <span>💰 金幣加倍生效中,剩 {eq.boost_coin2x_left} 題</span>}
+        </section>
+      )}
+
+      {/* 現金券:金幣 10:1 換新台幣,兌換後由爸媽發放 */}
+      {rows.some((r) => r.type === "voucher") && (
+        <section className="rounded-2xl bg-gradient-to-br from-emerald-50 to-lime-50 p-4 ring-2 ring-emerald-200">
+          <h3 className="font-bold">💵 現金券</h3>
+          <p className="mb-3 text-xs text-slate-500">10 金幣 = 1 元。兌換後在下面看得到紀錄,找爸爸媽媽領取現金。</p>
+          <div className="grid grid-cols-3 gap-3">
+            {rows.filter((r) => r.type === "voucher").sort((a, b) => a.price - b.price).map((item) => (
+              <div key={item.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                <p className="text-2xl font-black text-emerald-600">${item.value}</p>
+                <p className="text-xs text-slate-500">{item.label}</p>
+                <button onClick={() => buyVoucher(item)} disabled={busy || (eq?.coins ?? 0) < item.price}
+                  className="mt-2 w-full rounded-full bg-emerald-500 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40">
+                  🪙 {item.price}
+                </button>
+              </div>
+            ))}
+          </div>
+          {vouchers.length > 0 && (
+            <div className="mt-3 space-y-1 text-xs">
+              {vouchers.map((v) => (
+                <div key={v.id} className="flex items-center justify-between rounded-lg bg-white/70 px-3 py-1.5">
+                  <span>{new Date(v.created_at).toLocaleDateString("zh-TW")} 兌換 {v.amount > 0 ? `${v.amount} 元` : rows.find((r) => r.key === v.item_key)?.label ?? "特權券"}</span>
+                  <span className={v.status === "paid" ? "text-emerald-600" : v.status === "cancelled" ? "text-slate-400" : "font-semibold text-amber-600"}>
+                    {v.status === "paid" ? "✅ 已兌現" : v.status === "cancelled" ? "已取消(金幣退回)" : "⏳ 等爸媽兌現"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 特權券:家長啟用的項目才會出現,兌換後由爸媽兌現 */}
+      {rows.some((r) => r.type === "privilege") && (
+        <section className="rounded-2xl bg-gradient-to-br from-sky-50 to-violet-50 p-4 ring-2 ring-sky-200">
+          <h3 className="font-bold">🎟️ 特權券</h3>
+          <p className="mb-3 text-xs text-slate-500">兌換後找爸爸媽媽兌現(紀錄顯示在上面的現金券區)。</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {rows.filter((r) => r.type === "privilege").sort((a, b) => a.price - b.price).map((item) => (
+              <div key={item.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">
+                <p className="text-3xl">{item.value}</p>
+                <p className="mt-1 text-sm font-semibold">{item.label.replace(/^\S+\s/, "")}</p>
+                <button onClick={() => buyVoucher(item)} disabled={busy || (eq?.coins ?? 0) < item.price}
+                  className="mt-2 w-full rounded-full bg-sky-500 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40">
+                  🪙 {item.price}
+                </button>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

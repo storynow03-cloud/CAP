@@ -28,6 +28,8 @@ export default function FriendsPage() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [duelFor, setDuelFor] = useState<string | null>(null); // friend_code being challenged
+  const [stake, setStake] = useState(0); // PK 押注金幣(0 = 友誼賽)
+  const [myCoins, setMyCoins] = useState(0);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -41,6 +43,11 @@ export default function FriendsPage() {
     setPets(petList);
     setFrameMap(new Map((frames ?? []).map((f: { key: string; value: string }) => [f.key, f.value])));
     setMyCode(rows.find((r) => r.is_me)?.friend_code ?? "");
+    const { data: u } = await supabase.auth.getUser();
+    if (u.user) {
+      const { data: p } = await supabase.from("profiles").select("coins").eq("id", u.user.id).maybeSingle();
+      setMyCoins(p?.coins ?? 0);
+    }
     setLoading(false);
   }, []);
 
@@ -67,9 +74,11 @@ export default function FriendsPage() {
     const { data: duelId, error } = await supabase.rpc("create_duel", {
       opp_code: friendCode,
       subj: subject,
+      p_stake: stake,
     });
     if (error || !duelId) {
-      setMsg("建立對戰失敗:" + (error?.message ?? "題目不足"));
+      const m = error?.message ?? "";
+      setMsg("建立對戰失敗:" + (m.includes("NOT_ENOUGH_COINS") ? "金幣不夠" : m.includes("NOT_ENOUGH_QUESTIONS") ? "題目不足" : m || "請確認對方是你的好友"));
       return;
     }
     router.push(`/duel?play=${duelId}`);
@@ -143,6 +152,16 @@ export default function FriendsPage() {
         {/* PK 科目選擇 */}
         {duelFor && (
           <div className="mt-3 rounded-xl bg-rose-50 p-3">
+            <p className="mb-2 text-sm font-semibold text-rose-700">押多少金幣?(輸的人把押注金幣給對方;0 = 友誼賽)</p>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {[0, 10, 50, 100, 200, 500].map((v) => (
+                <button key={v} onClick={() => setStake(v)} disabled={v > myCoins}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-30 ${stake === v ? "bg-amber-500 text-white" : "bg-white text-amber-700 shadow-sm"}`}>
+                  {v === 0 ? "友誼賽" : `🪙 ${v}`}
+                </button>
+              ))}
+              <span className="text-xs text-slate-500">我有 {myCoins} 金幣</span>
+            </div>
             <p className="mb-2 text-sm font-semibold text-rose-700">選擇 PK 科目(各 5 題,比又快又準):</p>
             <div className="flex flex-wrap gap-2">
               {SUBJECTS.map((s) => (

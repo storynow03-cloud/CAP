@@ -6,15 +6,17 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { createClient } from "@/lib/supabase/client";
-import { LEVEL_NAMES, SUBJECTS, subjectLabel } from "@/lib/types";
+import { LEVEL_NAMES, subjectLabel } from "@/lib/types";
 import { stripHtml } from "@/lib/html";
+import ChapterTag from "@/components/ChapterTag";
+import { CHAPTER_COLUMNS, SUBJECT_GROUPS, fetchTopicChapters, subjectGroup, type ChapterFields } from "@/lib/chapter";
 
 interface AttemptRow {
   created_at: string;
   is_correct: boolean;
   time_spent_ms: number | null;
   mode: string;
-  questions: { subject: string; topic: string; question: string } | null;
+  questions: (ChapterFields & { subject: string; topic: string; question: string }) | null;
 }
 
 const MODE_LABEL: Record<string, string> = {
@@ -40,6 +42,7 @@ export default function HistoryPage() {
   const [day, setDay] = useState("");
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [attemptsLoading, setAttemptsLoading] = useState(false);
+  const [chapters, setChapters] = useState<Map<string, ChapterFields>>(new Map());
 
   useEffect(() => {
     (async () => {
@@ -56,6 +59,8 @@ export default function HistoryPage() {
           .limit(60),
       ]);
       setMastery((m as MasteryRow[]) ?? []);
+      // 單元 → 年級・冊・單元編號(社會也靠它分成歷史/地理/公民)
+      setChapters(await fetchTopicChapters(supabase, ((m as MasteryRow[]) ?? []).map((r) => r.subject)));
       setDaily(d ?? []);
       if (d?.length) setDay(d[d.length - 1].day);
       setLoading(false);
@@ -72,7 +77,7 @@ export default function HistoryPage() {
       if (!u.user) return;
       const { data } = await supabase
         .from("attempts")
-        .select("created_at, is_correct, time_spent_ms, mode, questions(subject, topic, question)")
+        .select(`created_at, is_correct, time_spent_ms, mode, questions(${CHAPTER_COLUMNS}, question)`)
         .eq("user_id", u.user.id)
         .gte("created_at", `${day}T00:00:00+08:00`)
         .lt("created_at", `${day}T23:59:59.999+08:00`)
@@ -83,10 +88,13 @@ export default function HistoryPage() {
     })();
   }, [day]);
 
-  const radarData = SUBJECTS.map((s) => {
-    const rows = mastery.filter((m) => m.subject === s.key);
+  const chapterOf = (m: { subject: string; topic: string }): ChapterFields =>
+    chapters.get(`${m.subject}|${m.topic}`) ?? { subject: m.subject, topic: m.topic };
+  // 社會拆成歷史/地理/公民,共 7 個軸
+  const radarData = SUBJECT_GROUPS.map((g) => {
+    const rows = mastery.filter((m) => subjectGroup(chapterOf(m)) === g.key);
     const avg = rows.length ? rows.reduce((sum, r) => sum + r.score, 0) / rows.length : 0;
-    return { subject: s.label, score: Math.round(avg) };
+    return { subject: g.label, score: Math.round(avg) };
   });
 
   const lineData = daily.map((d) => ({
@@ -119,7 +127,7 @@ export default function HistoryPage() {
       </a>
 
       <section className="rounded-2xl bg-white p-4 shadow">
-        <h2 className="mb-2 px-2 font-bold">五科能力雷達</h2>
+        <h2 className="mb-2 px-2 font-bold">各科能力雷達(社會分成歷史/地理/公民)</h2>
         <div className="h-64">
           <ResponsiveContainer>
             <RadarChart data={radarData}>
@@ -155,7 +163,7 @@ export default function HistoryPage() {
             {weak.map((m) => (
               <div key={`${m.subject}-${m.topic}`} className="flex items-center gap-3 text-sm">
                 <span className="w-10 shrink-0 font-semibold">{subjectLabel(m.subject)}</span>
-                <span className="flex-1 truncate">{m.topic}</span>
+                <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1"><ChapterTag q={chapterOf(m)} compact /></span>
                 <span className="text-xs text-slate-400">
                   Lv{m.level} {LEVEL_NAMES[m.level]}
                 </span>
@@ -192,7 +200,7 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-1.5">
             {attempts.map((a, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+              <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="shrink-0">{a.is_correct ? "✅" : "❌"}</span>
                 <span className="w-12 shrink-0 text-xs text-slate-500">
                   {new Date(a.created_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}
@@ -200,8 +208,9 @@ export default function HistoryPage() {
                 <span className="w-10 shrink-0 text-xs font-semibold">
                   {a.questions ? subjectLabel(a.questions.subject) : "—"}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-slate-600">
-                  {a.questions ? `${a.questions.topic}|${stripHtml(a.questions.question)}` : ""}
+                <span className="min-w-0 flex-1">
+                  {a.questions && <ChapterTag q={a.questions} compact />}
+                  <span className="block truncate text-xs text-slate-500">{a.questions ? stripHtml(a.questions.question) : ""}</span>
                 </span>
                 <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-500">
                   {MODE_LABEL[a.mode] ?? a.mode}

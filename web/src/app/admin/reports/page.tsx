@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { subjectLabel } from "@/lib/types";
+import ChapterTag from "@/components/ChapterTag";
+import type { ChapterFields } from "@/lib/chapter";
 
 const REASON_LABEL: Record<string, string> = {
   missing_image: "缺圖/圖看不到",
@@ -14,11 +16,11 @@ const REASON_LABEL: Record<string, string> = {
 const LETTERS = ["A", "B", "C", "D", "E"];
 
 interface Item {
-  question: {
+  question: (ChapterFields & {
     id: string; subject: string; topic: string; question: string;
     options: string[] | null; answer: number | null; answer_text: string | null;
     explanation: string | null; needs_review: boolean;
-  } | null;
+  }) | null;
   reports: { reason: string; note: string | null; created_at: string; by: string }[];
 }
 
@@ -53,7 +55,7 @@ export default function AdminReportsPage() {
         <Link href="/admin" className="text-sm text-indigo-600">← 返回管理後台</Link>
       </div>
       <p className="text-sm text-slate-500">
-        孩子做題時按「這題有問題」送來的回報。確認題目真的有問題就「隱藏此題」,孩子之後不會再抽到。
+        孩子做題時按「這題有問題」送來的回報。確認題目真的有問題就「隱藏此題」,孩子之後不會再抽到;隱藏的題目可以到「題目管理」修正後再放回題庫。
       </p>
 
       {error && <p className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
@@ -68,7 +70,8 @@ export default function AdminReportsPage() {
         return (
           <div key={q.id} className="space-y-3 rounded-2xl bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span className="rounded bg-slate-100 px-2 py-0.5">{subjectLabel(q.subject)}|{q.topic}</span>
+              <span className="rounded bg-slate-100 px-2 py-0.5 font-semibold">{subjectLabel(q.subject)}</span>
+              <ChapterTag q={q} compact />
               <span className="font-mono">{q.id}</span>
               {q.needs_review && <span className="rounded bg-slate-200 px-2 py-0.5">已隱藏</span>}
             </div>
@@ -116,6 +119,10 @@ export default function AdminReportsPage() {
                 className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
                 ✅ 已修正
               </button>
+              <Link href={`/admin/questions?id=${encodeURIComponent(q.id)}`}
+                className="rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700">
+                ✏️ 編輯這題
+              </Link>
               <button onClick={() => act(q.id, "dismiss")} disabled={busy === q.id}
                 className="rounded-full bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40">
                 題目沒問題

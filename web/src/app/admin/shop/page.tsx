@@ -33,10 +33,13 @@ interface Item {
 
 const TYPE_LABEL: Record<string, string> = {
   theme: "主題色", frame: "頭像框", nameplate: "名牌底圖", title: "稱號", food: "寵物食物", booster: "加成道具",
+  voucher: "現金券", privilege: "特權券",
 };
 const TYPE_HINT: Record<string, string> = {
   theme: "內容填色碼,如 #4f46e5",
   frame: "內容填一個 emoji,如 ⭐",
+  voucher: "內容填新台幣金額,如 100(價格建議 = 金額 × 10)",
+  privilege: "內容填一個 emoji,如 🎮;兌換後由家長在「現金券兌換」頁兌現",
   nameplate: "內容填 CSS 漸層,如 linear-gradient(135deg,#f97316,#ec4899)",
   title: "內容填顯示文字(可含 emoji),如 🌱 新星",
   food: "內容填好感度點數,如 10",

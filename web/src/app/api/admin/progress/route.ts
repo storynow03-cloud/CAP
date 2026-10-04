@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
+import { CHAPTER_COLUMNS } from "@/lib/chapter";
+import { predictCap, type PredictAttempt } from "@/lib/cap-predict";
 
 /**
  * 管理者查看學生練習狀況。
@@ -7,7 +9,7 @@ import { requireStaff, adminFetch } from "@/lib/supabase/admin";
  * 家長要看孩子的學習狀況必須從後端以管理者身分取。
  *
  * GET              → 所有學生的總覽(今日/本週題數、正確率、連續天數、錯題待複習)
- * GET ?userId=xxx  → 單一學生的細節(近 14 天曲線、各科精熟度、最近作答、弱點單元)
+ * GET ?userId=xxx  → 單一學生的細節(近 14 天曲線、各科精熟度、最近作答、弱點單元、會考等級預估)
  */
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -47,8 +49,18 @@ export async function GET(req: NextRequest) {
       `mastery?user_id=eq.${userId}&select=subject,topic,level,score,attempts_count&order=score`
     );
     const recent = await json<Record<string, unknown>[]>(
-      `attempts?user_id=eq.${userId}&select=question_id,is_correct,mode,time_spent_ms,created_at,questions(subject,topic)&order=created_at.desc&limit=40`
+      `attempts?user_id=eq.${userId}&select=question_id,is_correct,mode,time_spent_ms,created_at,questions(${CHAPTER_COLUMNS},question)&order=created_at.desc&limit=200`
     );
+    // 會考等級預估:最近 3000 筆作答(PostgREST 一次最多 1000 筆,分頁讀)
+    const history: PredictAttempt[] = [];
+    for (let off = 0; off < 3000; off += 1000) {
+      const page = await json<PredictAttempt[]>(
+        `attempts?user_id=eq.${userId}&select=question_id,is_correct,created_at,questions(subject,difficulty,volume,type)&order=created_at.desc&limit=1000&offset=${off}`
+      );
+      history.push(...page);
+      if (page.length < 1000) break;
+    }
+    const predictions = predictCap(history);
     const wrong = await adminFetch(
       `/rest/v1/wrong_book?user_id=eq.${userId}&status=eq.active&select=question_id&limit=1`,
       { headers: { Prefer: "count=exact" } }
@@ -77,6 +89,7 @@ export async function GET(req: NextRequest) {
       weakTopics: mastery.filter((m) => m.attempts_count >= 3).slice(0, 8),
       recent,
       wrongCount,
+      predictions,
     });
   }
 

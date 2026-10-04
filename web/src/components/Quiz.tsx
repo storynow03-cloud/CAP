@@ -7,6 +7,8 @@ import { LEVEL_NAMES, subjectLabel, type Question } from "@/lib/types";
 import { levelFromXp, petCheer, fetchPets, type PetDef } from "@/lib/gamify";
 import PetView from "@/components/PetView";
 import ReportButton from "@/components/ReportButton";
+import ChapterTag from "@/components/ChapterTag";
+import ScratchPad from "@/components/ScratchPad";
 import { reviewProgressText, type ReviewState } from "@/lib/review";
 
 const LETTERS = ["A", "B", "C", "D", "E"];
@@ -49,6 +51,8 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
   const [hintQty, setHintQty] = useState(0);
   const [hintBusy, setHintBusy] = useState(false);
   const [eliminated, setEliminated] = useState<Set<number>>(new Set());
+  // 孩子自己排除的選項(確定不對的先劃掉,避免誤點);跟提示券的消去分開
+  const [crossed, setCrossed] = useState<Set<number>>(new Set());
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
   const supabase = createClient();
@@ -59,7 +63,16 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
   useEffect(() => {
     startRef.current = Date.now();
     setEliminated(new Set());
+    setCrossed(new Set());
   }, [idx]);
+
+  function toggleCross(i: number) {
+    setCrossed((prev) => {
+      const n = new Set(prev);
+      if (n.has(i)) n.delete(i); else n.add(i);
+      return n;
+    });
+  }
 
   // 載入夥伴(考試模式不打擾)
   useEffect(() => {
@@ -186,8 +199,9 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>
-          {subjectLabel(q.subject)}|{q.topic}
+        <span className="flex flex-wrap items-center gap-1">
+          <span className="font-semibold">{subjectLabel(q.subject)}</span>
+          <ChapterTag q={q} />
           {reviewOf?.has(q.id) ? (
             <span className="ml-2 rounded bg-violet-100 px-2 py-0.5 text-violet-700">變化題驗收</span>
           ) : reviewIds?.has(q.id) && (
@@ -205,6 +219,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
         />
       </div>
 
+      <ScratchPad resetKey={q.id}>
       <div className="rounded-2xl bg-white p-6 shadow">
         <div
           className="qhtml whitespace-pre-wrap text-lg leading-relaxed"
@@ -219,24 +234,37 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
         <div className="mt-5 space-y-2">
           {(q.options ?? []).map((opt, i) => {
             const isOut = !revealed && eliminated.has(i);
+            const isCrossed = !revealed && crossed.has(i);
             let cls = "border-slate-200 hover:border-indigo-400 hover:bg-indigo-50";
             if (revealed) {
               if (i === q.answer) cls = "border-emerald-500 bg-emerald-50";
               else if (i === selected) cls = "border-rose-400 bg-rose-50";
               else cls = "border-slate-200 opacity-60";
-            } else if (isOut) {
+            } else if (isOut || isCrossed) {
               cls = "border-slate-100 bg-slate-50 opacity-40";
             }
             return (
-              <button
-                key={i}
-                onClick={() => choose(i)}
-                disabled={revealed || isOut}
-                className={`block w-full rounded-xl border-2 px-4 py-3 text-left transition ${cls}`}
-              >
-                <span className="mr-2 font-bold text-slate-400">({LETTERS[i]})</span>
-                <span className={`qhtml ${isOut ? "line-through" : ""}`} dangerouslySetInnerHTML={{ __html: opt }} />
-              </button>
+              <div key={i} className="flex items-stretch gap-2">
+                <button
+                  onClick={() => choose(i)}
+                  disabled={revealed || isOut || isCrossed}
+                  className={`block min-w-0 flex-1 rounded-xl border-2 px-4 py-3 text-left transition ${cls}`}
+                >
+                  <span className="mr-2 font-bold text-slate-400">({LETTERS[i]})</span>
+                  <span className={`qhtml ${isOut || isCrossed ? "line-through" : ""}`} dangerouslySetInnerHTML={{ __html: opt }} />
+                </button>
+                {!revealed && !isOut && (
+                  <button
+                    onClick={() => toggleCross(i)}
+                    title={isCrossed ? "取消排除" : "排除這個選項(確定不對,先劃掉以免誤點)"}
+                    className={`shrink-0 rounded-xl border-2 px-2 text-xs font-semibold transition ${
+                      isCrossed ? "border-amber-300 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-400 hover:border-rose-300 hover:text-rose-500"
+                    }`}
+                  >
+                    {isCrossed ? "↺ 取消" : "✕ 排除"}
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -264,6 +292,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
         {/* key 綁題目:換題時元件重建,上一題的回報狀態不會殘留 */}
         <ReportButton key={q.id} questionId={q.id} userId={userId} />
       </div>
+      </ScratchPad>
 
       {revealed && pet && cheer && (() => {
         const isLegendary = !!petDefs.find((d) => d.key === pet.key)?.is_legendary;

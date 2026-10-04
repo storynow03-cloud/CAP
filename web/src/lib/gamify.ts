@@ -75,7 +75,7 @@ export const rarityOf = (r: string | null | undefined): Rarity =>
   (["common", "rare", "epic", "legendary"].includes(r ?? "") ? r : "common") as Rarity;
 export const SHOP_TYPE_LABEL: Record<string, string> = {
   theme: "🎨 主題色", frame: "🖼️ 頭像框", nameplate: "🏷️ 名牌底圖", title: "🏅 稱號",
-  food: "🍖 寵物食物", booster: "⚡ 加成道具",
+  food: "🍖 寵物食物", booster: "⚡ 加成道具", voucher: "💵 現金券", privilege: "🎟️ 特權券",
 };
 
 // get_shop RPC 回傳列(含今日折扣價與精選旗標)
@@ -259,27 +259,29 @@ export function petCheer(affection: number, correct: boolean): string {
 }
 
 // ===== 王關(每週輪替)=====
+// 5 科各一隻魔王;順序要與 SQL boss_week_subject() 一致(本週加倍的科目)
 export const BOSSES = [
-  { key: "calc", emoji: "🧮", name: "計算魔王", subject: "math", desc: "數學難題 10 連戰" },
-  { key: "science", emoji: "🔬", name: "自然霸主", subject: "science", desc: "自然難題 10 連戰" },
-  { key: "social", emoji: "🗺️", name: "社會王者", subject: "social", desc: "社會難題 10 連戰" },
-  { key: "chinese", emoji: "📜", name: "國文宗師", subject: "chinese", desc: "國文難題 10 連戰" },
+  { key: "calc", emoji: "🧮", name: "計算魔王", subject: "math", desc: "數學 10 連戰" },
+  { key: "science", emoji: "🔬", name: "自然霸主", subject: "science", desc: "自然 10 連戰" },
+  { key: "social", emoji: "🗺️", name: "社會王者", subject: "social", desc: "社會 10 連戰" },
+  { key: "chinese", emoji: "📜", name: "國文宗師", subject: "chinese", desc: "國文 10 連戰" },
+  { key: "english", emoji: "🐉", name: "英文巨龍", subject: "english", desc: "英文 10 連戰" },
 ];
-/** 本週是第幾週(用來輪 boss + 通關紀錄 key)*/
-export function currentWeekKey(): string {
-  const d = new Date();
-  const onejan = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d.getTime() - onejan.getTime()) / 86400000 + onejan.getDay() + 1) / 7);
-  return `${d.getFullYear()}-W${week}`;
-}
+// 魔王分級:打倒這一級才能挑戰下一級(與 SQL boss_tier_spec() 一致)
+export const BOSS_TIERS = [
+  { tier: 1, name: "見習", diff: [2, 3], pass: 6, xp: 60, coins: 30 },
+  { tier: 2, name: "精英", diff: [3, 3], pass: 7, xp: 100, coins: 50 },
+  { tier: 3, name: "將軍", diff: [3, 4], pass: 7, xp: 150, coins: 80 },
+  { tier: 4, name: "魔王", diff: [4, 5], pass: 7, xp: 200, coins: 100 },
+  { tier: 5, name: "魔王本尊", diff: [4, 5], pass: 8, xp: 300, coins: 150 },
+] as const;
 export function thisWeekBoss() {
   const d = new Date();
-  const onejan = new Date(d.getFullYear(), 0, 1);
-  const week = Math.floor((d.getTime() - onejan.getTime()) / (7 * 86400000));
-  return BOSSES[week % BOSSES.length];
+  // 用台北日期算(與 SQL 相同):1/1 起第幾週
+  const tpe = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Taipei" }));
+  const days = Math.floor((Date.UTC(tpe.getFullYear(), tpe.getMonth(), tpe.getDate()) - Date.UTC(tpe.getFullYear(), 0, 1)) / 86400000);
+  return BOSSES[Math.floor(days / 7) % BOSSES.length];
 }
-export const BOSS_PASS = 7; // 答對幾題算通關
-export const BOSS_REWARD = { xp: 200, coins: 100 };
 
 /** 把 hex 顏色加深(做漸層用),避免依賴瀏覽器 color-mix */
 export function darken(hex: string, factor = 0.62): string {

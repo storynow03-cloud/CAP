@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { LEVEL_NAMES, subjectLabel } from "@/lib/types";
+import StudentDetail, { type Detail } from "@/components/StudentDetail";
 
 interface StudentRow {
   id: string;
@@ -18,26 +18,6 @@ interface StudentRow {
   wrongCount: number;
   lastActiveAt: string | null;
 }
-
-interface Detail {
-  profile: { nickname: string; xp: number; coins: number; login_streak: number } | null;
-  daily: { day: string; total: number; correct: number; minutes: number }[];
-  subjects: { subject: string; level: number; score: number; topics: number }[];
-  weakTopics: { subject: string; topic: string; level: number; score: number; attempts_count: number }[];
-  recent: {
-    question_id: string;
-    is_correct: boolean;
-    mode: string;
-    time_spent_ms: number | null;
-    created_at: string;
-    questions: { subject: string; topic: string } | null;
-  }[];
-  wrongCount: number;
-}
-
-const MODE_LABEL: Record<string, string> = {
-  practice: "練習", challenge: "挑戰", exam: "模考", review: "複習",
-};
 
 /** 距今多久(讓家長一眼看出孩子多久沒練了) */
 function ago(iso: string | null) {
@@ -99,7 +79,7 @@ export default function AdminProgressPage() {
         <h1 className="text-xl font-bold">📊 學習狀況</h1>
         <Link href="/admin" className="text-sm text-indigo-600">← 返回管理後台</Link>
       </div>
-      <p className="text-sm text-slate-500">點一列可展開該學生的詳細狀況(近 14 天、各科程度、弱點單元、最近作答)。</p>
+      <p className="text-sm text-slate-500">點一列可展開該學生的詳細狀況(會考等級預估、近 14 天、各科程度、弱點單元、最近作答)。</p>
 
       {!rows && <p className="py-12 text-center text-slate-400">載入中…</p>}
 
@@ -151,7 +131,7 @@ export default function AdminProgressPage() {
                       📷 考卷診斷・上傳考卷/看補強進度
                     </Link>
                     {detailLoading && <p className="py-6 text-center text-sm text-slate-400">載入中…</p>}
-                    {detail && <DetailView d={detail} />}
+                    {detail && <StudentDetail d={detail} />}
                   </div>
                 )}
               </div>
@@ -159,91 +139,6 @@ export default function AdminProgressPage() {
           </div>
         )
       )}
-    </div>
-  );
-}
-
-function DetailView({ d }: { d: Detail }) {
-  const max = Math.max(1, ...d.daily.map((x) => x.total));
-  return (
-    <div className="space-y-4">
-      {/* 近 14 天長條 */}
-      <div>
-        <p className="mb-1 text-xs font-semibold text-slate-500">近 14 天作答量</p>
-        {d.daily.length === 0 ? (
-          <p className="text-sm text-slate-400">這段期間沒有作答紀錄</p>
-        ) : (
-          <div className="flex items-end gap-1" style={{ height: 64 }}>
-            {d.daily.map((x) => (
-              <div key={x.day} className="flex flex-1 flex-col items-center justify-end" title={`${x.day} ${x.total} 題・對 ${x.correct}`}>
-                <div className="w-full rounded-t bg-indigo-400" style={{ height: `${(x.total / max) * 100}%`, minHeight: 2 }} />
-                <span className="mt-0.5 text-[9px] text-slate-400">{x.day.slice(8)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 各科程度 */}
-      <div>
-        <p className="mb-1 text-xs font-semibold text-slate-500">各科程度</p>
-        {d.subjects.length === 0 ? (
-          <p className="text-sm text-slate-400">尚未開始任何科目</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {d.subjects.map((s) => (
-              <span key={s.subject} className="rounded-full bg-white px-3 py-1 text-xs shadow-sm">
-                {subjectLabel(s.subject)} <b>Lv{s.level}</b> {LEVEL_NAMES[s.level]}
-                <span className="ml-1 text-slate-400">({s.topics} 單元・平均 {s.score} 分)</span>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 弱點單元 */}
-      {d.weakTopics.length > 0 && (
-        <div>
-          <p className="mb-1 text-xs font-semibold text-slate-500">最需要加強的單元</p>
-          <div className="space-y-1">
-            {d.weakTopics.map((t) => (
-              <div key={`${t.subject}-${t.topic}`} className="flex items-center gap-2 text-sm">
-                <span className="w-8 shrink-0 text-xs text-slate-500">{subjectLabel(t.subject)}</span>
-                <span className="min-w-0 flex-1 truncate">{t.topic}</span>
-                <div className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-slate-200">
-                  <div className="h-full rounded-full bg-rose-400" style={{ width: `${t.score}%` }} />
-                </div>
-                <span className="w-16 shrink-0 text-right text-xs text-slate-400">{t.score} 分／{t.attempts_count} 題</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 最近作答 */}
-      <div>
-        <p className="mb-1 text-xs font-semibold text-slate-500">最近作答(最新 40 筆)</p>
-        {d.recent.length === 0 ? (
-          <p className="text-sm text-slate-400">沒有作答紀錄</p>
-        ) : (
-          <div className="max-h-56 space-y-0.5 overflow-y-auto rounded-lg bg-white p-2">
-            {d.recent.map((a, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <span>{a.is_correct ? "✅" : "❌"}</span>
-                <span className="w-24 shrink-0 text-slate-400">
-                  {new Date(a.created_at).toLocaleString("zh-TW", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </span>
-                <span className="w-8 shrink-0">{a.questions ? subjectLabel(a.questions.subject) : "—"}</span>
-                <span className="min-w-0 flex-1 truncate text-slate-600">{a.questions?.topic ?? ""}</span>
-                <span className="shrink-0 rounded bg-slate-100 px-1.5 text-slate-500">{MODE_LABEL[a.mode] ?? a.mode}</span>
-                <span className="w-10 shrink-0 text-right text-slate-400">
-                  {a.time_spent_ms ? `${Math.round(a.time_spent_ms / 1000)}s` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -6,7 +6,9 @@ import Quiz from "@/components/Quiz";
 import WrittenQuiz from "@/components/WrittenQuiz";
 import { pickVariant } from "@/lib/engine";
 import { REVIEW_RULES, isFinalReview } from "@/lib/review";
-import { SUBJECTS, subjectLabel, type Question } from "@/lib/types";
+import { subjectLabel, type Question } from "@/lib/types";
+import ChapterTag from "@/components/ChapterTag";
+import { SUBJECT_GROUPS, subjectGroup, unitKey, chapterText } from "@/lib/chapter";
 
 interface WrongRow {
   question_id: string;
@@ -61,7 +63,8 @@ export default function WrongBookPage() {
 
   const now = Date.now();
   const isDue = (r: WrongRow) => new Date(r.due_at).getTime() <= now;
-  const inSubject = (r: WrongRow) => subject === "all" || r.questions.subject === subject;
+  // 篩選分組:社會拆成歷史/地理/公民
+  const inSubject = (r: WrongRow) => subject === "all" || subjectGroup(r.questions) === subject;
   const due = rows.filter(isDue);
   const dueHere = due.filter(inSubject);
   const dueChoice = dueHere.filter((r) => r.questions.type === "single_choice");
@@ -115,8 +118,15 @@ export default function WrongBookPage() {
     );
   }
 
-  const subjectsWithRows = SUBJECTS.filter((s) => rows.some((r) => r.questions.subject === s.key));
+  const subjectsWithRows = SUBJECT_GROUPS.filter((s) => rows.some((r) => subjectGroup(r.questions) === s.key));
   const listed = rows.filter(inSubject);
+  // 錯題集中在哪些單元(家長找補強資源用):同一冊同一單元合併計數
+  const units = [...listed.reduce((m, r) => {
+    const k = unitKey(r.questions);
+    const cur = m.get(k) ?? { q: r.questions, n: 0 };
+    cur.n++;
+    return m.set(k, cur);
+  }, new Map<string, { q: Question; n: number }>()).values()].sort((a, b) => b.n - a.n);
 
   return (
     <div className="space-y-5">
@@ -152,10 +162,10 @@ export default function WrongBookPage() {
           </button>
         )}
 
-        {subjectsWithRows.length > 1 && (
+        {subjectsWithRows.length >= 1 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {[{ key: "all", label: "全部" }, ...subjectsWithRows].map((s) => {
-              const n = s.key === "all" ? due.length : due.filter((r) => r.questions.subject === s.key).length;
+              const n = s.key === "all" ? due.length : due.filter((r) => subjectGroup(r.questions) === s.key).length;
               return (
                 <button
                   key={s.key}
@@ -172,6 +182,24 @@ export default function WrongBookPage() {
         )}
       </div>
 
+      {!loading && units.length > 0 && (
+        <div className="rounded-2xl bg-white p-5 shadow">
+          <h2 className="mb-2 font-bold">📚 錯題集中在這些單元</h2>
+          <p className="mb-3 text-xs text-slate-500">依年級・冊・單元・知識點整理,可以照這份清單找課本或補充資源。</p>
+          <div className="space-y-1.5">
+            {units.slice(0, 12).map(({ q, n }) => (
+              <div key={unitKey(q)} className="flex items-center justify-between gap-2 text-sm" title={chapterText(q)}>
+                <span className="flex min-w-0 flex-wrap items-center gap-1">
+                  <span className="text-xs font-semibold text-slate-500">{subjectLabel(q.subject)}</span>
+                  <ChapterTag q={q} compact />
+                </span>
+                <span className="shrink-0 font-bold text-rose-500">{n} 題</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="py-8 text-center text-slate-500">載入中…</p>
       ) : (
@@ -179,8 +207,9 @@ export default function WrongBookPage() {
           {listed.map((r) => (
             <div key={r.question_id} className="rounded-xl bg-white p-4 text-sm shadow-sm">
               <div className="mb-1 flex justify-between gap-2 text-xs text-slate-400">
-                <span>
-                  {subjectLabel(r.questions.subject)}|{r.questions.topic}
+                <span className="flex flex-wrap items-center gap-1">
+                  <span className="font-semibold text-slate-500">{subjectLabel(r.questions.subject)}</span>
+                  <ChapterTag q={r.questions} compact />
                 </span>
                 <span className="shrink-0">
                   {"●".repeat(r.streak)}{"○".repeat(REVIEW_RULES.OVERCOME_STREAK - r.streak)}{" "}

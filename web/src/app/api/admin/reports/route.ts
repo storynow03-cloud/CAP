@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaff, adminFetch } from "@/lib/supabase/admin";
+import { CHAPTER_COLUMNS } from "@/lib/chapter";
 
 /**
  * 題目回報處理(管理者)。
@@ -27,7 +28,7 @@ export async function GET() {
   const qids = [...new Set(reports.map((r) => r.question_id))];
   const uids = [...new Set(reports.map((r) => r.user_id))];
   const questions = await (
-    await adminFetch(`/rest/v1/questions?id=in.(${qids.map(encodeURIComponent).join(",")})&select=id,subject,topic,question,options,answer,answer_text,explanation,needs_review`)
+    await adminFetch(`/rest/v1/questions?id=in.(${qids.map(encodeURIComponent).join(",")})&select=id,question,options,answer,answer_text,explanation,needs_review,${CHAPTER_COLUMNS}`)
   ).json();
   const profiles = await (
     await adminFetch(`/rest/v1/profiles?id=in.(${uids.join(",")})&select=id,nickname`)
@@ -54,7 +55,7 @@ export async function PATCH(req: NextRequest) {
 
   if (action === "hide") {
     const r = await adminFetch(`/rest/v1/questions?id=eq.${encodeURIComponent(questionId)}`, {
-      method: "PATCH", body: JSON.stringify({ needs_review: true }),
+      method: "PATCH", headers: { "x-actor": auth.user.id }, body: JSON.stringify({ needs_review: true }),
     });
     if (!r.ok) return NextResponse.json({ error: "隱藏題目失敗" }, { status: 500 });
   }
@@ -63,6 +64,7 @@ export async function PATCH(req: NextRequest) {
     `/rest/v1/question_reports?question_id=eq.${encodeURIComponent(questionId)}&status=eq.open`,
     {
       method: "PATCH",
+      headers: { "x-actor": auth.user.id },
       body: JSON.stringify({ status, resolved_at: new Date().toISOString(), resolved_by: auth.user.id }),
     }
   );

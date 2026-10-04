@@ -6,6 +6,7 @@ import { pickPracticeQuestions, pickWrittenQuestions } from "@/lib/engine";
 import Quiz from "@/components/Quiz";
 import WrittenQuiz from "@/components/WrittenQuiz";
 import { SUBJECTS, type Question } from "@/lib/types";
+import { SOCIAL_BRANCHES, chapterInfo, socialBranch } from "@/lib/chapter";
 
 interface TopicRow {
   topic: string;
@@ -68,6 +69,8 @@ function groupByVolume(rows: TopicRow[]): { label: string; topics: TopicRow[] }[
 
 export default function PracticePage() {
   const [subject, setSubject] = useState("math");
+  // 社會分科篩選(歷史/地理/公民),"all" = 不篩
+  const [branch, setBranch] = useState("all");
   const [format, setFormat] = useState<"choice" | "written">("choice");
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
@@ -163,6 +166,22 @@ export default function PracticePage() {
           ))}
         </div>
 
+        {subject === "social" && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[{ key: "all", label: "社會全部" }, ...SOCIAL_BRANCHES].map((b) => (
+              <button
+                key={b.key}
+                onClick={() => setBranch(b.key)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  branch === b.key ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <label className="mb-2 mt-5 block text-sm font-semibold">題型</label>
         <div className="flex gap-2">
           <button
@@ -202,7 +221,9 @@ export default function PracticePage() {
           )}
         </div>
         <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-2">
-          {groupByVolume(topics).map((g) => {
+          {groupByVolume(
+            topics.filter((t) => subject !== "social" || branch === "all" || socialBranch({ subject, subtopic: t.subtopic, source: t.source }) === branch)
+          ).map((g) => {
             const names = g.topics.map((t) => t.topic);
             const chosen = names.filter((n) => selectedTopics.includes(n)).length;
             const open = openGroups.includes(g.label);
@@ -255,7 +276,7 @@ export default function PracticePage() {
                             )
                           }
                         />
-                        <span className="flex-1">{t.topic}</span>
+                        <span className="flex-1">{chapterInfo({ subject, topic: t.topic, subtopic: t.subtopic, source: t.source }).unit || t.topic}</span>
                         <span className="shrink-0 text-xs text-slate-400">{t.cnt} 題</span>
                       </label>
                     ))}

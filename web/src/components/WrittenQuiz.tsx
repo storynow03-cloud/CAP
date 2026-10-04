@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { recordAnswer } from "@/lib/engine";
 import { subjectLabel, type Question } from "@/lib/types";
 import ReportButton from "@/components/ReportButton";
+import ChapterTag from "@/components/ChapterTag";
+import ScratchPad from "@/components/ScratchPad";
 
 export interface WrittenResult {
   questionId: string;
@@ -83,9 +85,10 @@ export default function WrittenQuiz({ questions, userId, onFinish }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>
-          {subjectLabel(q.subject)}|{q.topic}
-          <span className="ml-2 rounded bg-violet-100 px-2 py-0.5 text-violet-700">非選・紙上作答</span>
+        <span className="flex flex-wrap items-center gap-1">
+          <span className="font-semibold">{subjectLabel(q.subject)}</span>
+          <ChapterTag q={q} />
+          <span className="rounded bg-violet-100 px-2 py-0.5 text-violet-700">非選・紙上作答</span>
         </span>
         <span>
           {idx + 1} / {questions.length}|難度 {"★".repeat(q.difficulty)}
@@ -98,6 +101,7 @@ export default function WrittenQuiz({ questions, userId, onFinish }: Props) {
         />
       </div>
 
+      <ScratchPad resetKey={q.id}>
       <div className="rounded-2xl bg-white p-6 shadow">
         <div
           className="qhtml whitespace-pre-wrap text-lg leading-relaxed"
@@ -107,7 +111,7 @@ export default function WrittenQuiz({ questions, userId, onFinish }: Props) {
         {!revealed ? (
           <div className="mt-6">
             <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-800">
-              ✍️ 請在紙上完整寫出你的作答過程,寫完後再看解答對照。非選題重點是<b>把過程寫完整</b>,這是 A++ 的關鍵。
+              ✍️ 請在紙上(或按「✏️ 計算紙」直接在題目上)完整寫出你的作答過程,寫完後再看解答對照。非選題重點是<b>把過程寫完整</b>,這是 A++ 的關鍵。
             </p>
             <button
               onClick={reveal}
@@ -167,6 +171,7 @@ export default function WrittenQuiz({ questions, userId, onFinish }: Props) {
         )}
         <ReportButton key={q.id} questionId={q.id} userId={userId} />
       </div>
+      </ScratchPad>
     </div>
   );
 }

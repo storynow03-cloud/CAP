@@ -1,11 +1,26 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-07-19
+> **最後更新**:2026-10-04
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
-> **2026-10-03 最新狀態(新對話先看這段)**
+> **2026-10-04 最新狀態(新對話先看這段)**
+> - **數學/自然缺字修復已寫入正式資料庫**(使用者在終端機執行):補回 Word EQ 算式 3,472 題 + 詳解 1,580 題、
+>   Symbol 符號 2,633 題;可見數學 8,025 → 9,192 題、自然 11,672 題;可見題的題幹/選項已無空白符號。
+>   CSS(.frac 等)已隨 commit `fbeae928` 上線。
+> - **夜間一次做完的功能(程式已改、本機驗證,尚未 commit/push)**:章節標籤(年級・冊・單元・知識點,全模組)、
+>   社會拆歷史/地理/公民、選項排除、計算紙、管理後台會考等級預估、題目管理(隱藏題可修正放回)、操作紀錄+還原、
+>   好友 PK 押金幣+即時對戰房間、現金券/特權券、魔王 5 科×5 級、排行榜 8 項、金幣防竄改。
+> - **上線步驟(順序很重要)**:① SQL Editor(專案 CAP)依序執行 `supabase/migrations/20261004000000_audit_log.sql`、
+>   `20261004010000_vouchers_duel_wager.sql`、`20261004020000_boss_tiers_leaderboard_lock.sql`
+>   ② **馬上** commit + push 新程式(SQL 跑完到新程式上線之間,舊版扭蛋會不扣錢、舊版 PK 交不了卷)。
+>   SQL 已在本機 PGlite 跑過全部 migration + 38 項情境測試(`node scripts/sql-test/scenarios.mjs`)。
+> - **待使用者決定**:金幣經濟方案 A/B/C(`docs/10-經驗值與金幣經濟分析.md`,現況「亂按刷題」賺最多,現金券上線前建議先決定);
+>   要啟用哪些特權券;題目回報 4 題 `node scripts/fix-reported-2026-10-04.mjs --apply`。
+> - 本機另有別的對話的 `next dev` 在 3000 埠(Next 16 不允許同資料夾開第二個),驗證時直接用它。
+>
+> **2026-10-03 狀態(部分已被上面取代)**
 > - **正式站** https://cap-three-ruddy.vercel.app ,最新已部署 commit `c00946ad`(函式機房搬到首爾)。
 >   `web/vercel.json` 的 `regions: ["icn1"]` 絕不能拿掉(資料庫在首爾,拿掉整站每頁慢 1~2 秒)。
 > - **Supabase 請認明專案 CAP**(`lwdziaamuygqfgfcmffd`,首爾),不是 CAP-review。我沒有資料庫密碼,DDL/RLS 要請使用者到 SQL Editor 執行。
@@ -357,6 +372,21 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
 
 ## 📋 進度日誌(每次里程碑往上加一行)
+
+- 2026-10-04(夜間自動執行):**數學缺字根治 + 「要修正的內容.docx」11 項與新增功能一次做完(程式未 commit)**。
+  **缺字**:根源是 Word EQ 功能變數(分數/圈圈數字/線段上劃線/聯立大括號)轉檔整個消失、Symbol 字型符號存成私用區 U+F0xx;
+  `export-eq-text.ps1` 用 Word 讀含變數代碼的全文 → `restore-eq-fields.mjs` 逐字對齊(去掉 EQ 後必須與 DB 完全相同才插回)、
+  `fix-symbol-chars.mjs` 對照表換符號;使用者兩支**同時**執行造成 1,384 題符號被蓋回 → `reconcile-eq-symbols.mjs` 從兩份備份重建修正。
+  **功能**:`lib/chapter.ts`+`ChapterTag`(全模組標年級・冊・單元・知識點,社會依 JSG/JSH/JSC 分科)、Quiz 選項排除+`ScratchPad` 計算紙、
+  錯題本單元彙總、歷程雷達 7 軸、章節掌握度依冊分組、`lib/cap-predict.ts` 會考等級預估(只算第一次作答、難度加權、可信度)、
+  `/admin/questions` 題目管理、`/admin/audit` 操作紀錄(觸發器 + `audit_restore`)、PK 押注+對戰房間(結算全在 DB)、
+  現金券/特權券+`/admin/vouchers`、魔王 5 科×5 級(`clear_boss`)、`/leaderboard`、扭蛋改 `gacha_spin`、profiles 欄位鎖。
+  **重要發現/教訓**:① 原本孩子能從瀏覽器直接改自己的金幣(profiles policy for all)——金幣能換錢後必須鎖;
+  ② 答錯也給 1 金幣 → 亂按刷題賺最多(見 docs/10);③ 本機 PGlite 跑 migration 抓到 `boss_tier_spec` 回傳欄位數錯誤,
+  以後改 SQL 先跑 `scripts/sql-test`;④ 兩支會改同一欄位的腳本不能同時跑。
+  **驗證**:tsc 通過;SQL 38 項情境測試全過;本機以管理員身分瀏覽章節/練習/歷程/學習狀況/題目管理,臨時預覽頁測選項排除、計算紙、預估等級(已刪)。
+  **Supabase MCP 連的是舊帳號**,看不到正式 CAP,advisors 無法跑;改用 anon key 逐表探測,只有交易所對未登入公開 → 已在 migration 改成登入才看。
+  **下一步**:使用者執行 3 份 SQL → 立刻 commit/push;選經濟方案;執行題目回報修正腳本。
 
 - 2026-09-30 ~ 10-03:**錯題複習改版 + 題庫大修復(可見題目 56,561 → 84,733)+ 網站快 2~3 倍 + 導入 Opus 5.5 工作規則**。
   **錯題複習**(commit 64feea3,已上線):健檢發現孩子錯題本 181 題全部過期、0 題克服 → 首頁醒目提醒「今天先複習 10 題」、
