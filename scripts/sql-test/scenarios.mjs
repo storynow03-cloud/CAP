@@ -52,16 +52,19 @@ await as(A, "select * from buy_item('voucher_50')");
 ok(await coins(A) === 500, `買 50 元現金券扣 5,000 金幣(剩 ${await coins(A)})`);
 const v = (await db.query("select * from voucher_redemptions where user_id = $1", [A])).rows;
 ok(v.length === 1 && v[0].amount === 50 && v[0].status === "pending", "產生一筆待發放 50 元紀錄");
-await expectError(() => as(A, "select * from buy_item('voucher_500')"), "NOT_ENOUGH_COINS", "金幣不夠買 500 元券");
+await expectError(() => as(A, "select * from buy_item('voucher_500')"), "INACTIVE", "500 元券已下架(每日上限 50 元)");
+await db.exec(`update profiles set coins = 99999 where id = '${A}'`);
+await expectError(() => as(A, "select * from buy_item('voucher_50')"), "DAILY_LIMIT", "同一天第二張 50 元券被擋(每日兌換上限 50 元)");
+await db.exec(`update profiles set coins = 5500 where id = '${A}'`);
 await expectError(() => as(A, "select * from buy_item('priv_game30')"), "INACTIVE", "特權券預設下架買不到");
 await expectError(() => as(B, `select handle_voucher(${v[0].id}, 'paid')`), "需要管理者權限", "孩子不能自己標記已發放");
 await as(P, `select handle_voucher(${v[0].id}, 'cancelled')`);
-ok(await coins(A) === 5500, `家長取消 → 退回 5,000 金幣(剩 ${await coins(A)})`);
-await db.exec(`update profiles set coins = 10000 where id = '${A}'`);
-await as(A, "select * from buy_item('voucher_100')");
+ok(await coins(A) === 10500, `家長取消 → 退回 5,000 金幣(剩 ${await coins(A)})`);
+await as(A, "select * from buy_item('voucher_50')");
+ok(await coins(A) === 5500, "取消的不算額度 → 當天可以再換一張 50 元券");
 const v2 = (await db.query("select id from voucher_redemptions where user_id = $1 and status = 'pending'", [A])).rows[0];
 await as(P, `select handle_voucher(${v2.id}, 'paid')`);
-ok((await db.query("select status from voucher_redemptions where id = $1", [v2.id])).rows[0].status === "paid" && await coins(A) === 0, "家長標記已發放、金幣不退");
+ok((await db.query("select status from voucher_redemptions where id = $1", [v2.id])).rows[0].status === "paid" && await coins(A) === 5500, "家長標記已發放、金幣不退");
 await db.exec(`update profiles set coins = 1000 where id = '${A}'`);
 
 console.log("③ 好友 PK 對賭");
@@ -155,6 +158,25 @@ await expectError(() => as(G, `select handle_voucher(1, 'paid')`), "需要管理
 await expectError(() => as(G, `select audit_restore(1)`), "需要管理者權限", "L2 不能還原操作紀錄");
 ok((await as(G, "select count(*)::int n from audit_log")).rows[0].n === 0, "L2 看不到操作紀錄");
 await expectError(() => db.query(`update profiles set role = 'admin' where id = '${G}'`), "profiles_role_check", "角色只能是四種之一");
+
+await as(G, `select grant_reward('${A}', 'item', 'voucher_100')`);
+ok((await db.query("select count(*)::int n from voucher_redemptions where user_id = $1 and item_key = 'voucher_100'", [A])).rows[0].n === 1, "家長送的券不受每日上限、下架的券也能送");
+
+console.log("⑧ 防刷題(金幣規則)");
+const att = async (qid, okk, ms) => as(A, `insert into attempts(user_id, question_id, selected, is_correct, time_spent_ms, mode) values ('${A}', '${qid}', 0, ${okk}, ${ms}, 'practice')`);
+const xp = async () => (await db.query("select xp from profiles where id = $1", [A])).rows[0].xp;
+const s0 = await coins(A), x0 = await xp();
+await att("math-t2", true, 2000);
+ok(await coins(A) === s0 && await xp() === x0, "作答 2 秒(亂按)答對:不給金幣也不給經驗值");
+await att("math-t3", false, 8000);
+ok(await coins(A) === s0 && await xp() === x0 + 2, "答錯:不給金幣,經驗值 +2");
+await att("math-t2", true, 8000);   // math-t2 難度 3 → 2 + 3/2 = 3 枚
+const c1 = await coins(A);
+ok(c1 === s0 + 3, `認真答對(8 秒、難度 3):+3 金幣(實得 ${c1 - s0})`);
+await att("math-t2", true, 9000);
+ok(await coins(A) === c1, "同一題同一天再答對:不再給金幣");
+const dq = (await db.query("select progress from daily_quests where user_id = $1 and key = 'answer'", [A])).rows[0];
+ok(dq && dq.progress === 3, `每日任務「完成 15 題」只算有效作答(亂按那題不算;進度 ${dq?.progress})`);
 
 console.log(`\n結果:${pass} 通過、${fail} 失敗`);
 process.exit(fail ? 1 : 0);

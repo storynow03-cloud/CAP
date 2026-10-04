@@ -53,6 +53,8 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
   const [eliminated, setEliminated] = useState<Set<number>>(new Set());
   // 孩子自己排除的選項(確定不對的先劃掉,避免誤點);跟提示券的消去分開
   const [crossed, setCrossed] = useState<Set<number>>(new Set());
+  // 作答少於 5 秒(疑似亂按)→ 資料庫不給金幣/經驗值,畫面上提醒孩子
+  const [tooFast, setTooFast] = useState(false);
   const resultsRef = useRef<QuizResult[]>([]);
   const startRef = useRef(Date.now());
   const supabase = createClient();
@@ -132,6 +134,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
     if (revealed) return;
     setSelected(i);
     setRevealed(true);
+    setTooFast(Date.now() - startRef.current < 5000);
     const isCorrect = i === q.answer;
     resultsRef.current.push({
       questionId: q.id,
@@ -279,6 +282,11 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
                 <span className="font-semibold">詳解:</span>
                 <span className="qhtml" dangerouslySetInnerHTML={{ __html: q.explanation }} />
               </div>
+            )}
+            {tooFast && (
+              <p className="mt-2 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                ⏱️ 這題答得太快了(不到 5 秒),沒有金幣和經驗值。看完題目再作答才有獎勵喔!
+              </p>
             )}
             {reviewState ? (
               <p className={`mt-2 text-xs font-semibold ${reviewState.status === "overcome" ? "text-emerald-700" : "text-amber-700"}`}>

@@ -38,9 +38,28 @@ export const MODE_LABEL: Record<string, string> = {
 };
 
 
+// 會考等級 → 積分(常見換算:A++ 7 … C 1,五科滿分 35;實際依各區免試入學簡章)
+const GRADE_POINT: Record<string, number> = { "A++": 7, "A+": 6, A: 5, "B++": 4, "B+": 3, B: 2, C: 1 };
+const ALL_SUBJECTS = ["chinese", "english", "math", "science", "social"];
+
 function Predictions({ list }: { list: SubjectPrediction[] }) {
   if (!list.length) return <p className="text-sm text-slate-400">還沒有選擇題作答紀錄,無法預估</p>;
+  const points = list.reduce((s, p) => s + (GRADE_POINT[p.grade] ?? 0), 0);
+  const missing = ALL_SUBJECTS.filter((k) => !list.some((p) => p.subject === k));
+  const weak = list.filter((p) => p.confidence === "資料不足" || p.confidence === "低").length;
   return (
+    <div className="space-y-2">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-3 text-white">
+      <span className="text-sm">預估會考積分</span>
+      <span className="text-3xl font-black">{points}<span className="text-base font-normal opacity-80"> / 35</span></span>
+      <span className="text-xs opacity-90">
+        {list.map((p) => `${subjectLabel(p.subject)} ${p.grade}`).join("・")}
+        {missing.length > 0 && `・尚未作答:${missing.map(subjectLabel).join("、")}(以 0 分計)`}
+      </span>
+      <span className="ml-auto text-[11px] opacity-80">
+        換算 A++=7…C=1(常見規則,實際依各區簡章){weak > 0 && `・${weak} 科題數不足,僅供參考`}
+      </span>
+    </div>
     <div className="grid gap-2 sm:grid-cols-2">
       {list.map((p) => {
         const missing = [1, 2, 3, 4, 5, 6].filter((v) => !p.volumes.includes(v)).map((v) => GRADE_LABEL[v]);
@@ -66,6 +85,7 @@ function Predictions({ list }: { list: SubjectPrediction[] }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ const ORDER = ["theme", "frame", "nameplate", "title", "booster"];
 const BUY_ERR: Record<string, string> = {
   NOT_ENOUGH_COINS: "金幣不足 🪙",
   ALREADY_OWNED: "你已經擁有了",
+  DAILY_LIMIT: "今天的現金券已經換到上限 50 元囉!金幣會存著,明天再來換 🪙",
   FREE_ITEM: "這是免費預設款",
 };
 
@@ -49,9 +50,11 @@ export default function ShopPanel() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   // 已兌換、等爸媽發放的現金券
+  // 今天已用金幣兌換的現金券金額(每日上限 50 元,家長送的不算)
+  const todayStr = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" });
   // 爸媽發的獎勵
   const [gifts, setGifts] = useState<{ id: number; kind: string; item_key: string | null; coins: number; note: string | null; created_at: string }[]>([]);
-  const [vouchers, setVouchers] = useState<{ id: number; item_key: string; amount: number; status: string; created_at: string }[]>([]);
+  const [vouchers, setVouchers] = useState<{ id: number; item_key: string; amount: number; coins: number; status: string; created_at: string }[]>([]);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -68,7 +71,7 @@ export default function ShopPanel() {
     setOwned(new Set((items ?? []).map((i) => i.key)));
     setInventory(new Map((inv ?? []).map((r) => [r.item_key, r.qty])));
     setEq(p as Equipped);
-    const { data: vs } = await supabase.from("voucher_redemptions").select("id,item_key,amount,status,created_at")
+    const { data: vs } = await supabase.from("voucher_redemptions").select("id,item_key,amount,coins,status,created_at")
       .eq("user_id", uid).order("created_at", { ascending: false }).limit(10);
     setVouchers(vs ?? []);
     const { data: gs } = await supabase.from("reward_grants").select("id,kind,item_key,coins,note,created_at")
@@ -145,6 +148,10 @@ export default function ShopPanel() {
     }
     load();
   }
+
+  const todayRedeemed = vouchers
+    .filter((v) => v.status !== "cancelled" && v.coins > 0 && new Date(v.created_at).toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" }) === todayStr)
+    .reduce((s, v) => s + v.amount, 0);
 
   if (loading || !eq) return <p className="py-12 text-center text-slate-500">載入中…</p>;
 
@@ -229,7 +236,10 @@ export default function ShopPanel() {
       {rows.some((r) => r.type === "voucher") && (
         <section className="rounded-2xl bg-gradient-to-br from-emerald-50 to-lime-50 p-4 ring-2 ring-emerald-200">
           <h3 className="font-bold">💵 現金券</h3>
-          <p className="mb-3 text-xs text-slate-500">100 金幣 = 1 元。兌換後在下面看得到紀錄,找爸爸媽媽領取現金。</p>
+          <p className="mb-3 text-xs text-slate-500">
+            100 金幣 = 1 元,每天最多換 50 元(金幣不會不見,多的明天再換)。
+            今天還能換 <b className="text-emerald-700">{Math.max(0, 50 - todayRedeemed)} 元</b>。兌換後找爸爸媽媽領取現金。
+          </p>
           <div className="grid grid-cols-3 gap-3">
             {rows.filter((r) => r.type === "voucher").sort((a, b) => a.price - b.price).map((item) => (
               <div key={item.key} className="rounded-2xl bg-white p-3 text-center shadow-sm">

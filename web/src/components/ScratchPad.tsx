@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * - 「✏️ 計算紙」開啟後進入書寫模式(畫布接收筆觸);切到「👆 作答」時筆跡保留、畫布不擋點擊。
  * - 偵測到觸控筆後忽略手指/手掌的觸碰(防誤觸);滑鼠也能畫。
  * - 換題(resetKey 改變)自動清空。
+ * - 開啟時題目下方多一塊方格「計算區」(約半個螢幕高),和題目同一張畫布,題目旁邊寫不下可以往下寫。
  */
 export default function ScratchPad({ resetKey, children }: { resetKey: string; children: ReactNode }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -126,6 +127,20 @@ export default function ScratchPad({ resetKey, children }: { resetKey: string; c
       </div>
       <div ref={wrapRef} className="relative">
         {children}
+        {open && (
+          <div
+            className="mt-3 flex min-h-[420px] items-start justify-center rounded-2xl border-2 border-dashed border-sky-200 pt-2 text-xs text-sky-300"
+            style={{
+              height: "55vh",
+              backgroundColor: "#fff",
+              backgroundImage:
+                "linear-gradient(#e0f2fe 1px, transparent 1px), linear-gradient(90deg, #e0f2fe 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
+          >
+            ✏️ 計算區(題目上方、這裡都可以寫)
+          </div>
+        )}
         {open && (
           <canvas
             ref={canvasRef}

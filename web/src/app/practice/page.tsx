@@ -72,6 +72,10 @@ export default function PracticePage() {
   // 社會分科篩選(歷史/地理/公民),"all" = 不篩
   const [branch, setBranch] = useState("all");
   const [format, setFormat] = useState<"choice" | "written">("choice");
+  // 「學習」頁的非選題入口:/practice?format=written
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("format") === "written") setFormat("written");
+  }, []);
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [openGroups, setOpenGroups] = useState<string[]>([]);

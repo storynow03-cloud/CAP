@@ -82,3 +82,65 @@ create trigger audit_reward_grants after insert or update or delete on public.re
 update public.shop_items set price = 5000  where key = 'voucher_50';
 update public.shop_items set price = 10000 where key = 'voucher_100';
 update public.shop_items set price = 50000 where key = 'voucher_500';
+
+-- ───── ④ 每日兌換上限 50 元(使用者決定)─────
+-- 金幣可以一直賺、不封頂;限制的是「用金幣換現金券」:每人每天(台北時間)合計最多 50 元。
+-- 家長發放的券(grant_reward,coins = 0)不算在內。上限只能換 50 元 → 100/500 元券先下架(商城管理可再上架)。
+create or replace function public.voucher_daily_limit() returns int language sql immutable as $$ select 50 $$;
+
+create or replace function public.voucher_redeemed_today(p_user uuid) returns int
+language sql stable security definer set search_path = public as $$
+  select coalesce(sum(amount), 0)::int from voucher_redemptions
+   where user_id = p_user and status <> 'cancelled' and coins > 0
+     and (created_at at time zone 'Asia/Taipei')::date = (now() at time zone 'Asia/Taipei')::date;
+$$;
+revoke all on function public.voucher_redeemed_today(uuid) from public;
+grant execute on function public.voucher_redeemed_today(uuid) to authenticated, service_role;
+
+create or replace function public.buy_item(p_key text)
+returns table(coins int, qty int)
+language plpgsql security definer set search_path = public as $$
+declare v_price int; v_active boolean; v_type text; v_value text; v_coins int; v_qty int; v_featured boolean;
+begin
+  select price, active, type, value into v_price, v_active, v_type, v_value from shop_items where key = p_key;
+  if v_price is null then raise exception 'ITEM_NOT_FOUND'; end if;
+  if not v_active then raise exception 'INACTIVE'; end if;
+  if v_price <= 0 then raise exception 'FREE_ITEM'; end if;
+
+  if v_type not in ('voucher', 'privilege') then
+    v_featured := p_key in (select key from shop_featured_keys() key);
+    if v_featured then v_price := ceil(v_price * 0.7)::int; end if;
+  end if;
+
+  if v_type = 'voucher' and voucher_redeemed_today(auth.uid()) + v_value::int > voucher_daily_limit() then
+    raise exception 'DAILY_LIMIT';
+  end if;
+
+  select profiles.coins into v_coins from profiles where id = auth.uid() for update;
+  if v_coins is null then raise exception 'NO_PROFILE'; end if;
+  if v_coins < v_price then raise exception 'NOT_ENOUGH_COINS'; end if;
+
+  if v_type in ('voucher', 'privilege') then
+    update profiles set coins = profiles.coins - v_price where id = auth.uid() returning profiles.coins into v_coins;
+    insert into voucher_redemptions(user_id, item_key, amount, coins)
+      values (auth.uid(), p_key, case when v_type = 'voucher' then v_value::int else 0 end, v_price);
+    select count(*)::int into v_qty from voucher_redemptions where user_id = auth.uid() and status = 'pending';
+  elsif v_type in ('food', 'booster') then
+    update profiles set coins = profiles.coins - v_price where id = auth.uid() returning profiles.coins into v_coins;
+    insert into inventory(user_id, item_key, qty) values (auth.uid(), p_key, 1)
+      on conflict (user_id, item_key) do update set qty = inventory.qty + 1
+      returning inventory.qty into v_qty;
+  else
+    if exists (select 1 from user_items where user_id = auth.uid() and key = p_key) then
+      raise exception 'ALREADY_OWNED';
+    end if;
+    update profiles set coins = profiles.coins - v_price where id = auth.uid() returning profiles.coins into v_coins;
+    insert into user_items(user_id, key) values (auth.uid(), p_key) on conflict do nothing;
+    v_qty := 1;
+  end if;
+  return query select v_coins, v_qty;
+end; $$;
+revoke all on function public.buy_item(text) from anon;
+grant execute on function public.buy_item(text) to authenticated;
+
+update public.shop_items set active = false where key in ('voucher_100', 'voucher_500');

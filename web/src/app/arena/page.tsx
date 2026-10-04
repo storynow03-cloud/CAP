@@ -13,8 +13,8 @@ export default function ArenaHub() {
   ];
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">⚔️ 對戰</h1>
-      <p className="text-sm text-slate-500">跟魔王、好友、同學一較高下!</p>
+      <h1 className="text-xl font-bold">🎮 挑戰</h1>
+      <p className="text-sm text-slate-500">跟魔王、好友、同學一較高下!看看排行榜上誰最強。</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((it) => (
           <Link key={it.href} href={it.href}

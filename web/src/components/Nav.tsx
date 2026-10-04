@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// 4 大類,每一類回答一個問題:學習(今天練什麼)、診斷(哪裡不會)、挑戰(跟誰比)、獎勵(努力換到什麼)
 const LINKS = [
   { href: "/", label: "🏠 首頁", match: ["/"] },
-  { href: "/learn", label: "📚 練習", match: ["/learn", "/challenge", "/practice", "/wrong-book", "/mock-exam"] },
-  { href: "/arena", label: "⚔️ 對戰", match: ["/arena", "/boss", "/friends", "/duel", "/contest", "/realm", "/leaderboard"] },
-  { href: "/shop", label: "🏪 商店", match: ["/shop", "/market"] },
-  { href: "/history", label: "📈 歷程", match: ["/history"] },
+  { href: "/learn", label: "📚 學習", match: ["/learn", "/challenge", "/practice", "/wrong-book", "/mock-exam"] },
+  { href: "/insight", label: "📊 診斷", match: ["/insight", "/chapters", "/history", "/diagnose"] },
+  { href: "/arena", label: "🎮 挑戰", match: ["/arena", "/boss", "/friends", "/duel", "/contest", "/realm", "/leaderboard"] },
+  { href: "/shop", label: "🎁 獎勵", match: ["/shop", "/market"] },
   { href: "/me", label: "🙂 我的", match: ["/me", "/admin"] },
 ];
 

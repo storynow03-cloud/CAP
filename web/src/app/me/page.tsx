@@ -70,6 +70,9 @@ export default function MePage() {
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState<AchStats | null>(null);
   const [tab, setTab] = useState<"achievements" | "pet">("achievements");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "pet") setTab("pet");
+  }, []);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
