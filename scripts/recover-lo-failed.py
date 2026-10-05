@@ -146,8 +146,23 @@ for it in items:
         hs = [i for i in range(ha + 1, hb) if i in fset]
         if not hs: continue
         ds = list(range(da + 1, db))
-        if len(hs) != len(ds): stat["gap_mismatch"] += len(hs); continue
-        for hi, di in zip(hs, ds):
+        if len(hs) == len(ds): pairs_g = list(zip(hs, ds))
+        else:
+            # 數量對不上:只用 img 標籤的長寬比,在這段裡做順序不交錯的配對(差 5% 內),每張失敗圖都要配到才採用
+            ok = lambda h, d: tag_ar[h] and D[d][0] and abs(math.log(tag_ar[h] / D[d][0])) <= 0.05
+            n, m = len(hs), len(ds)
+            best = [[0] * (m + 1) for _ in range(n + 1)]
+            for a in range(n - 1, -1, -1):
+                for b in range(m - 1, -1, -1):
+                    best[a][b] = max(best[a + 1][b], best[a][b + 1], best[a + 1][b + 1] + 1 if ok(hs[a], ds[b]) else 0)
+            if best[0][0] != n: stat["gap_mismatch"] += n; continue
+            pairs_g, a, b = [], 0, 0
+            while a < n and b < m:
+                if ok(hs[a], ds[b]) and best[a][b] == best[a + 1][b + 1] + 1: pairs_g.append((hs[a], ds[b])); a += 1; b += 1
+                else: b += 1
+            if len(pairs_g) != n: stat["gap_mismatch"] += n; continue
+            stat["gap_ar"] = stat.get("gap_ar", 0) + n
+        for hi, di in pairs_g:
             p = it["seq"][di]
             if tag_ar[hi] and D[di][0] and abs(math.log(tag_ar[hi] / D[di][0])) > GAP_AR: stat["ar_bad"] += 1; continue
             tw = re.search(r'width="(\d+)"', it["tags"][hi]); tw = int(tw.group(1)) if tw else 300

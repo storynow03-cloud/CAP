@@ -217,7 +217,11 @@ for (const subject of SUBJECTS) {
       const bodyImgs = [...body.matchAll(/\x02(\d+)\x03/g)].map((m) => imgs[+m[1]]);
       const explPart = rest.join("《答案》").split("詳解：").slice(1).join("詳解：");
       const explImgs = [...explPart.matchAll(/\x02(\d+)\x03/g)].map((m) => imgs[+m[1]]);
-      if (nQ !== bodyImgs.length || (nE && nE !== explImgs.length)) { stat.mismatch++; continue; }
+      if (nQ !== bodyImgs.length || (nE && nE !== explImgs.length)) {
+        stat.mismatch++;
+        if (process.env.MISMATCH_LOG) fs.appendFileSync(process.env.MISMATCH_LOG, JSON.stringify({ id: q.id, nQ, body: bodyImgs.length, nE, expl: explImgs.length }) + "\n");
+        continue;
+      }
       stat.matched++;
 
       // 依序替換:題幹 → 各選項;詳解另外一組
