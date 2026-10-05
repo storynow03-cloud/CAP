@@ -27,6 +27,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--only", default="")
 ap.add_argument("--limit", type=int, default=0)
 ap.add_argument("--skip-convert", action="store_true")
+ap.add_argument("--pairs-only", action="store_true", help="只輸出 data/rerender/pic-pairs.json,不重畫")
 args = ap.parse_args()
 
 os.makedirs(WORK, exist_ok=True)
@@ -164,6 +165,7 @@ def align(H, D):
     return pairs
 
 unmatched = []
+pic_pairs = {}
 render_jobs, mapping, stats = [], [], dict(files=0, nodocx=0, html_imgs=0, meta_pairs=0, unmatched_meta_gif=0)
 # 先取出所有原始圖,向量圖的長寬比一次用 GDI+ 讀(PIL 讀 EMF 的邊界和 LO/GDI+ 不同)
 for j in jobs:
@@ -212,6 +214,7 @@ for j in jobs:
     D = [(meta_ar.get(p), vec(p + ".thumb.png")) if p in meta_ar else (ar_of(p), vec(p)) for p in seq]
     stats["html_imgs"] += len(srcs)
     aligned = align(H, D)
+    pic_pairs[j["slug"]] = {di: hi for hi, di, _ in aligned}  # docx 圖序號 → lo-html img 序號(rebuild-math-hidden 用)
     pairs = {hi: di for hi, di, _ in aligned}
     sims = {hi: sc for hi, _, sc in aligned}
     for hi in range(len(srcs)):
@@ -232,6 +235,8 @@ for j in jobs:
                             out=os.path.join(out_dir, q), w=w, h=h, sim=round(sims[hi], 3)))
         stats["meta_pairs"] += 1
 print(stats, flush=True)
+with open(os.path.join(WORK, "pic-pairs.json"), "w", encoding="utf-8") as f: json.dump(pic_pairs, f)
+if args.pairs_only: sys.exit(0)
 with open(os.path.join(WORK, "unmatched.json"), "w", encoding="utf-8") as f: json.dump(unmatched, f, indent=0)
 
 # ---- 4. GDI+ 放大畫 → 縮回原尺寸 ----

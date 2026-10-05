@@ -5,8 +5,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RD = os.path.join(ROOT, "data", "image-review")
-items = json.load(open(os.path.join(RD, "to-confirm.json"), encoding="utf-8"))
-out = os.path.join(RD, "confirm"); os.makedirs(out, exist_ok=True)
+import sys
+# 用法:python scripts/confirm-sheets.py [輸入 JSON(字串陣列或 [{p, why}])] [輸出資料夾名]
+src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(RD, "to-confirm.json")
+items = [x if isinstance(x, dict) else {"p": x, "why": ""} for x in json.load(open(src, encoding="utf-8"))]
+out = os.path.join(RD, sys.argv[2] if len(sys.argv) > 2 else "confirm"); os.makedirs(out, exist_ok=True)
 for f in os.listdir(out): os.remove(os.path.join(out, f))
 font = ImageFont.truetype("arial.ttf", 18)
 CW, CH, COLS, ROWS = 390, 300, 3, 4

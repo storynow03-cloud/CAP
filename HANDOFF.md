@@ -385,6 +385,9 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-10-05:使用者同意後 commit `848e622e` + push(126 張新圖、選單兩排、腳本),正式站確認新圖上線;
+  unhide-fixed 放回 320 題。411 題隱藏題只剩 88 題(still-bad.json:模糊點陣原圖、非表格內嵌物件、找不到原檔的公式)。
+
 - 2026-10-04 深夜(續):**救回 411 題隱藏題(程式/資料都備妥,待使用者依序執行,步驟見 task_checklist.md 最上方)**。
   ① 社會/英文/國文圖:webp 檔名 = LO 圖檔 sha1 → 反查來源(webp-origin.json)→ scripts/rerender-webp.py 重畫;
   .doc 改取原始 OfficeArt BLIP(scripts/lib/doc_blips.py,LO 轉 docx 會把部分 WMF 改成 PNG);比對前把 LO 洋紅「透明色」當白底。

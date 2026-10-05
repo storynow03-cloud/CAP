@@ -8,6 +8,10 @@ W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = f'xmlns:m="{M}" xmlns:w="{W}"'
 
 
+ARC = ('<span style="display:inline-block;border-top:1.5px solid currentColor;'
+       'border-radius:50% 50% 0 0/6px 6px 0 0;padding:1px 1px 0;line-height:1.1">{}</span>')
+
+
 class Unsupported(Exception):
     pass
 
@@ -33,7 +37,7 @@ def conv(el):
     t = el.tag
     if t in (q("rPr"), q("ctrlPr"), q("fPr"), q("radPr"), q("barPr"), q("accPr"), q("sSupPr"), q("sSubPr"),
              q("sSubSupPr"), q("dPr"), q("eqArrPr"), q("boxPr"), q("borderBoxPr"), q("funcPr"), q("groupChrPr"),
-             q("limLowPr"), q("limUppPr"), q("naryPr"), q("sPrePr"), q("mPr"), q("phantPr")) or t.startswith(f"{{{W}}}"):
+             q("limLowPr"), q("limUppPr"), q("naryPr"), q("sPrePr"), q("mPr"), q("phantPr"), q("argPr"), q("mcs")) or t.startswith(f"{{{W}}}"):
         return ""
     if t == q("r"):
         return "".join(html.escape(x.text or "") for x in el.iter(q("t")))
@@ -62,7 +66,7 @@ def conv(el):
             return ('<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;line-height:1">'
                     f'<span style="font-size:.7em;line-height:.8">{arrow}</span><span>{e}</span></span>')
         if ch in ("⌢", "⏜", "̑", "⌒"):
-            return f"⌒{e}"
+            return ARC.format(e)  # 弧:跨過字母的弧線
         raise Unsupported(f"acc {ch!r}")
     if t == q("sSup"):
         return f"{part(el, 'e')}<sup>{part(el, 'sup')}</sup>"
@@ -82,6 +86,21 @@ def conv(el):
             return f'<span class="brace"><span class="lb">{{</span>{"".join(kids(e) for e in es)}</span>'
         sep = "," if pr is None or pr.find(q("sepChr")) is None else pr.find(q("sepChr")).get(q("val"))
         return html.escape(beg) + sep.join(kids(e) for e in es) + html.escape(end)
+    if t == q("groupChr"):  # 例:弧 ⏜ 疊在字母上方
+        ch = val(el, f"{q('groupChrPr')}/{q('chr')}") or "⏟"
+        pos = val(el, f"{q('groupChrPr')}/{q('pos')}") or "bot"
+        mark = {"⏜": "⌒", "⌢": "⌒", "⏞": "⏞", "⏟": "⏟"}.get(ch, ch)
+        e = part(el, "e")
+        if mark == "⌒" and pos == "top": return ARC.format(e)
+        top, bot = (mark, e) if pos == "top" else (e, mark)
+        return ('<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;line-height:1">'
+                f'<span style="font-size:.7em;line-height:.8">{top}</span><span>{bot}</span></span>') if pos == "top" else                ('<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:top;line-height:1">'
+                f'<span>{top}</span><span style="font-size:.7em;line-height:.8">{bot}</span></span>')
+    if t == q("m"):  # 矩陣:每列一行(聯立式常用)
+        rows = []
+        for mr in el.findall(q("mr")):
+            rows.append("<span>" + "&nbsp;".join(kids(e) for e in mr.findall(q("e"))) + "</span>")
+        return '<span class="arr">' + "".join(rows) + "</span>"
     if t == q("eqArr"):
         return '<span class="arr">' + "".join(f"<span>{kids(r)}</span>" for r in el.findall(q("e"))) + "</span>"
     if t in (q("box"), q("phant")):

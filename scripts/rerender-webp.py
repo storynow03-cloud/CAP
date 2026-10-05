@@ -3,7 +3,7 @@
 # 流程與 rerender-metafiles.py 相同:原檔 → docx(zip 直接讀,.doc 由 LO 轉)→ 依序取圖 → 與 lo-html img 序列對齊
 #   (GDI+ 長寬比 + 構圖相似度)→ GDI+ 放大 3 倍畫 → 縮成現有 webp 的寬高 → 寫到 data/rerender/out/<科>/h/<檔名>
 # 只處理 webp-origin.json 裡的圖;不動 web/public。對應表寫入 data/rerender/map-webp.json(可給 apply 用)
-# 用法:python scripts/rerender-webp.py [--blips] [--only-miss] [--origin X.json --out Y.json]   (--blips:.doc 改取原始 BLIP;--only-miss:只跑上一輪對不上的,輸出 map-webp2.json)
+# 用法:python scripts/rerender-webp.py [--blips] [--only-miss] [--origin X.json --out Y.json] [--scale-out 2]   (--blips:.doc 改取原始 BLIP;--only-miss:只跑上一輪對不上的,輸出 map-webp2.json)
 import json, math, os, re, shutil, struct, subprocess, zipfile, html as htmlmod
 from urllib.parse import unquote
 import sys
@@ -22,7 +22,8 @@ TMP = os.path.join(WORK, "tmp-webp-blips" if "--blips" in __import__("sys").argv
 
 ORIGIN = sys.argv[sys.argv.index("--origin") + 1] if "--origin" in sys.argv else "webp-origin.json"
 origin = json.load(open(os.path.join(WORK, ORIGIN), encoding="utf-8"))
-USE_BLIPS = "--blips" in sys.argv  # 改用 .doc 原始圖(OfficeArt BLIP)
+USE_BLIPS = "--blips" in sys.argv
+OUT_K = float(sys.argv[sys.argv.index("--scale-out") + 1]) if "--scale-out" in sys.argv else 1.0  # 低解析圖:輸出放大倍數  # 改用 .doc 原始圖(OfficeArt BLIP)
 if "--only-miss" in sys.argv:  # 只重跑上一輪對不上的
     miss = set(json.load(open(os.path.join(WORK, "miss-webp.json"))))
     origin = {k: v for k, v in origin.items() if k in miss}
@@ -175,6 +176,7 @@ for j in jobs:
             miss.append(webp); continue
         cur = os.path.join(ROOT, "web/public", webp.lstrip("/"))
         w, h = Image.open(cur).size
+        w, h = round(w * OUT_K), round(h * OUT_K)
         big = os.path.join(j["tdir"], f"{idx:03d}.big.png")
         render.append(f"{j['seq'][pairs[idx][0]]}\t{big}\t{w * SCALE}\t{h * SCALE}")
         mapping.append(dict(p=webp, big=big, w=w, h=h, sim=round(pairs[idx][1], 3), src=os.path.relpath(j["seq"][pairs[idx][0]], WORK)))

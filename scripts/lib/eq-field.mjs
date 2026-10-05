@@ -129,6 +129,18 @@ function renderCmd(n) {
       if (nonBlank.length === 2 && /^[¯‾￣—─－]+$/.test(textOf(nonBlank[0]).trim())) {
         return `<span class="ovl">${render(nonBlank[1]).trim()}</span>`;
       }
+      // 疊一個弧形(︵ 或 \s\up8(︵))= 弧 AB:跨過字母的弧線
+      const arcOf = (a) => {
+        if (/^[︵⌒⏜]$/.test(textOf(a).trim())) return true;
+        const cmd = a.filter((x) => !(x.t === "text" && !x.v.trim()));
+        return cmd.length === 1 && cmd[0].t === "cmd" && cmd[0].name === "s" && cmd[0].args.length === 1 && /^[︵⌒⏜]$/.test(textOf(cmd[0].args[0]).trim());
+      };
+      if (nonBlank.length === 2 && arcOf(nonBlank[0])) {
+        return `<span style="display:inline-block;border-top:1.5px solid currentColor;border-radius:50% 50% 0 0/6px 6px 0 0;padding:1px 1px 0;line-height:1.1">${render(nonBlank[1]).trim()}</span>`;
+      }
+      // ＝ 與 ～ 疊在一起 = 全等符號
+      if (nonBlank.length === 2 && new Set(nonBlank.map((a) => textOf(a).trim())).size === 2 &&
+          nonBlank.every((a) => /^[＝=～~]$/.test(textOf(a).trim()))) return "≅";
       // 疊一個全形空白與內容(\o\ac(　,\F(1,4)))= 只是內容
       const visible = nonBlank.filter((a) => textOf(a).replace(/[\s　]/g, "") !== "");
       if (visible.length === 1) return render(visible[0]);

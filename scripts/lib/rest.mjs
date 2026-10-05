@@ -11,6 +11,9 @@ export const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": 
 
 /** 分頁讀完整張查詢結果(path 例:`questions?select=id,question&order=id`) */
 export async function fetchAll(pathQuery) {
+  // 分頁一定要有固定排序,否則 PostgreSQL 每頁順序不保證 → 會漏題/重複(2026-10-05 發現)
+  if (!/[?&]order=/.test(pathQuery) && /^[a-z_]+\?/.test(pathQuery) && !/^(question_reports|audit_log)\?/.test(pathQuery))
+    pathQuery += "&order=id";
   const rows = [];
   for (let off = 0; ; off += 1000) {
     const r = await fetch(`${URL_BASE}/rest/v1/${pathQuery}&limit=1000&offset=${off}`, { headers: H });

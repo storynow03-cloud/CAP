@@ -56,6 +56,7 @@ def align(H, D):
 
 
 gaps = {}
+gapsfull = []  # 數量對不上的段落:{slug, imgs:[依序的網站圖], maths:[依序的公式 HTML 或 None]}(給寬高比對齊用)
 out, stat = [], dict(files=0, formulas=0, mapped=0, unsupported=0, gap_mismatch=0)
 base = os.path.join(ROOT, "data", "lo-html", "數學")
 for dp_, _, fs in os.walk(base):
@@ -104,6 +105,10 @@ for dp_, _, fs in os.walk(base):
             maths = [items[k][1] for k in range(ka + 1, kb) if items[k][0] == "math"]
             others = [k for k in range(ka + 1, kb) if items[k][0] == "pic"]
             if not maths: continue
+            # 檔案開頭的頁首小圖(000,21×21)不是公式:數量多出來時先排除它
+            if len(hs) != len(maths) + len(others) and len(hs) != len(maths) and hs and hs[0] == 0:
+                with Image.open(os.path.join(qdir, qfiles[0])) as im0:
+                    if im0.size == (21, 21): hs = hs[1:]
             if len(hs) == len(maths) + len(others):
                 seq = [items[k] for k in range(ka + 1, kb)]
             elif len(hs) == len(maths):
@@ -115,6 +120,7 @@ for dp_, _, fs in os.walk(base):
                 for x in maths:
                     try: cands.append(omml_to_html(x))
                     except Unsupported: cands.append(None)
+                gapsfull.append({"slug": slug, "imgs": [f"/qimg/math/{slug}/{qfiles[h]}" for h in hs], "maths": cands})
                 for r, h in enumerate(hs):
                     est = round((r + 0.5) / len(hs) * len(cands) - 0.5)  # 依相對位置估計的候選序號
                     gaps[f"/qimg/math/{slug}/{qfiles[h]}"] = {"est": est, "cands": cands}
@@ -126,6 +132,7 @@ for dp_, _, fs in os.walk(base):
                     stat["mapped"] += 1
                 except Unsupported as e:
                     stat["unsupported"] += 1
+json.dump(gapsfull, open(os.path.join(WORK, "formula-gaps-full.json"), "w", encoding="utf-8"), ensure_ascii=False)
 json.dump(gaps, open(os.path.join(WORK, "formula-gaps.json"), "w", encoding="utf-8"), ensure_ascii=False)
 json.dump(out, open(os.path.join(WORK, "formulas.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=0)
 print(stat)
