@@ -385,6 +385,11 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-10-05 晚上:**可見題 88,905 → 90,701**(commit 81f44338、961856dd)。救回 LO 匯出失敗的社會/國文/英文附圖 1,498 張
+  (recover-lo-failed.py:.doc 原始 BLIP + 序列對齊;數量不同時用 img 標籤長寬比)、patch-lo-images 支援題組小題(前後文對應)、
+  子代理逐題檢查「題目+圖」後放回 1,550 題;數學乾淨隱藏題重建放回 246 題。自然科因無法確認公式完整,本輪不放回。
+  ⚠️ patch-lo-images 乾跑以前會覆寫 data/lowres-images.json(已改成需 --write-lowres)。
+
 - 2026-10-05 夜間(使用者授權全部做完、含 commit/push):**可見題 87,351 → 88,905**,commit `2f419e77`(+ 收尾 commit)。
   ① 數學公式全面對應(8,561/8,561;排除檔首 21×21 頁首圖;omml.py 弧/矩陣),再換 320 題。
   ② 低解析圖(社會為主)2 倍重畫 2,119 張、add-img-width 保持顯示大小,放回 1,207 題;lowres-images.json 2,308→141。
