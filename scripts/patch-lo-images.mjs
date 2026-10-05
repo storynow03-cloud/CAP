@@ -20,6 +20,7 @@ import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 
 const sharp = createRequire(path.join(ROOT, "web", "package.json"))("sharp");
 // 資料庫是正式站共用的:圖片檔還沒部署上線就改資料庫,孩子會看到破圖。所以分兩階段:
@@ -57,6 +58,9 @@ function walk(d) {
 const decode = (s) => s.replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&nbsp;/g, " ")
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
+const RECOVERED_FILE = path.join(ROOT, "data", "rerender", "recovered.json");
+const RECOVERED = fs.existsSync(RECOVERED_FILE) ? JSON.parse(fs.readFileSync(RECOVERED_FILE, "utf8")) : {};
+
 /** HTML → 純文字,圖片換成 \x02{序號}\x03,回傳文字與圖片清單(檔案路徑 + 顯示寬度) */
 function extract(file) {
   const html = fs.readFileSync(file, "utf8").replace(/^[\s\S]*?<body[^>]*>/i, "").replace(/<\/body>[\s\S]*$/i, "");
@@ -66,7 +70,10 @@ function extract(file) {
       const src = (tag.match(/src="([^"]+)"/i) || [])[1];
       const w = Number((tag.match(/width="(\d+)"/i) || [])[1]) || null;
       const name = decode((tag.match(/name="([^"]*)"/i) || [])[1] ?? "");
-      imgs.push({ path: src ? path.join(path.dirname(file), decodeURIComponent(decode(src))) : null, width: w, name, html: file });
+      let p = src ? path.join(path.dirname(file), decodeURIComponent(decode(src))) : null;
+      // LO 匯出失敗(src 指回 .html):改用 recover-lo-failed.py 從原始 .doc 救回的圖
+      if (p && /\.html$/i.test(p)) p = RECOVERED[`${file}|${imgs.length}`] ?? p;
+      imgs.push({ path: p, width: w, name, html: file });
       return `\x02${imgs.length - 1}\x03`;
     }).replace(/<[^>]+>/g, "")
   );
@@ -116,6 +123,52 @@ async function toWebp(img, subject) {
 const tag = (url, width) => `<img src="${url}" alt="圖"${width && width < 150 ? ` width="${width}"` : ""} />`;
 const countX = (s) => (String(s ?? "").match(/\x01/g) || []).length;
 
+// 題組:母題(id = 題號)的 \x01 依序對應這一題的圖;每個小題(-gN)的 \x01 用「前後文」到母題裡找同一個位置。
+// 前後文正規化:去空白、去小題標記「(　)(1)」「（第 1 小題）」。每個 \x01 都要在母題找到唯一的對應,否則整組跳過。
+const ctxNorm = (s) => s.replace(/[(（]\s*[)）]\s*[(（]\d+[)）]|（第\s*\d+\s*小題）/g, "").replace(/[\s　]/g, "");
+function slots(text) { // 每個 \x01 的 [左文, 右文]
+  const out = [];
+  const t = String(text ?? "");
+  for (let i = 0; i < t.length; i++) if (t[i] === "\x01") out.push([ctxNorm(t.slice(Math.max(0, i - 30), i)).slice(-12), ctxNorm(t.slice(i + 1, i + 31)).slice(0, 12)]);
+  return out;
+}
+async function patchGroup(cands, parentId, block, imgs, subject) {
+  const parent = cands.find((r) => r.id === parentId);
+  if (!parent) return null;
+  const pText = [parent.question, ...(parent.options ?? [])].join("\u0000");
+  const body = block.split("《答案》")[0];
+  const bodyImgs = [...body.matchAll(/\x02(\d+)\x03/g)].map((m) => imgs[+m[1]]);
+  const pSlots = slots(pText);
+  if (pSlots.length !== bodyImgs.length || !pSlots.length) return null;
+  const urls = await Promise.all(bodyImgs.map((im) => toWebp(im, subject)));
+  if (urls.some((u) => !u)) return null;
+  const find = ([l, r]) => {
+    let hit = pSlots.map((s, i) => (s[0] === l && s[1] === r ? i : -1)).filter((i) => i >= 0);
+    if (hit.length !== 1) hit = pSlots.map((s, i) => (s[0] === l ? i : -1)).filter((i) => i >= 0);
+    return hit.length === 1 ? hit[0] : -1;
+  };
+  const out = [];
+  for (const q of cands) {
+    if (q === parent) continue;
+    let bad = false;
+    const fill = (s) => {
+      if (typeof s !== "string" || !s.includes("\x01")) return s;
+      const ss = slots(s);
+      let k = 0;
+      return s.replace(/\x01/g, () => { const i = find(ss[k++]); if (i < 0) { bad = true; return "\x01"; } return tag(urls[i], bodyImgs[i].width); });
+    };
+    const o = { ...q, question: fill(q.question), options: q.options ? q.options.map(fill) : q.options };
+    if (bad) return null; // 任一小題對不上 → 整組跳過
+    const why = ["題組補圖"];
+    const usesLowRes = bodyImgs.some((im) => lowRes.has(im.path));
+    if (q.needs_review && !usesLowRes && !manualBroken.has(q.id) && problems(o).length === 0 && visibleProblems(o).length === 0) { o.needs_review = false; why.push("放回題庫"); stat.unhide++; }
+    const bodyPatch = {};
+    for (const f of FIELDS) if (JSON.stringify(o[f]) !== JSON.stringify(q[f])) bodyPatch[f] = o[f];
+    if (Object.keys(bodyPatch).length) out.push({ id: q.id, subject, body: bodyPatch, before: Object.fromEntries(Object.keys(bodyPatch).map((f) => [f, q[f]])), why });
+  }
+  return out;
+}
+
 const plan = [];
 const stat = { files: 0, blocks: 0, need: 0, matched: 0, mismatch: 0, ambiguous: 0, unhide: 0 };
 for (const subject of SUBJECTS) {
@@ -153,7 +206,13 @@ for (const subject of SUBJECTS) {
       }
       if (!q || (!nQ && !nE)) continue;
       stat.need++;
-      if (cands.length > 1) { stat.ambiguous++; continue; }
+      if (cands.length > 1) { // 題組:母題 + 拆出的小題(2026-10-05)
+        const r = await patchGroup(cands, `${subject}-${num}`, block, imgs, subject);
+        if (!r) { stat.ambiguous++; continue; }
+        stat.group = (stat.group ?? 0) + r.length;
+        plan.push(...r);
+        continue;
+      }
       const [body, ...rest] = block.split("《答案》");
       const bodyImgs = [...body.matchAll(/\x02(\d+)\x03/g)].map((m) => imgs[+m[1]]);
       const explPart = rest.join("《答案》").split("詳解：").slice(1).join("詳解：");
@@ -195,7 +254,7 @@ for (const subject of SUBJECTS) {
           if (lowRes.has(im.path)) lowResUse.push({ id: q.id, subject, html: im.html, name: im.name, url: made.get(im.path) });
         });
       }
-      else if (q.needs_review && !manualBroken.has(q.id) && problems(out).length === 0) { out.needs_review = false; why.push("放回題庫"); stat.unhide++; }
+      else if (q.needs_review && !manualBroken.has(q.id) && problems(out).length === 0 && visibleProblems(out).length === 0) { out.needs_review = false; why.push("放回題庫"); stat.unhide++; }
       const bodyPatch = {};
       for (const f of FIELDS) if (JSON.stringify(out[f]) !== JSON.stringify(q[f])) bodyPatch[f] = out[f];
       plan.push({ id: q.id, subject, body: bodyPatch, before: Object.fromEntries(Object.keys(bodyPatch).map((f) => [f, q[f]])), why });
@@ -208,8 +267,23 @@ const bySubj = {};
 for (const p of plan) for (const w of p.why) bySubj[`${w} ${p.subject}`] = (bySubj[`${w} ${p.subject}`] ?? 0) + 1;
 console.log(bySubj, `圖片 ${made.size} 張(去重後)`);
 if (failed.length) console.log(`無法處理的圖片 ${failed.length} 張(該題跳過),例:`, failed.slice(0, 3));
-fs.writeFileSync(path.join(ROOT, "data", "lowres-images.json"), JSON.stringify(lowResUse), "utf8");
-console.log(`低解析圖使用清單 ${lowResUse.length} 筆 → data/lowres-images.json`);
+// 2026-10-05:低解析清單已由 rerender 流程維護(重畫好的已移除),這裡不再覆寫;只有加 --write-lowres 才寫
+if (process.argv.includes("--write-lowres")) {
+  fs.writeFileSync(path.join(ROOT, "data", "lowres-images.json"), JSON.stringify(lowResUse), "utf8");
+  console.log(`低解析圖使用清單 ${lowResUse.length} 筆 → data/lowres-images.json`);
+}
+// --exclude <JSON>:題號(不含 -gN)清單,整組不處理(例:救回圖檢查發現有問題的,data/rerender/rec-exclude.json)
+const exIdx = process.argv.indexOf("--exclude");
+if (exIdx !== -1) {
+  const ex = new Set(JSON.parse(fs.readFileSync(process.argv[exIdx + 1], "utf8")));
+  const before = plan.length;
+  for (let i = plan.length - 1; i >= 0; i--) if (ex.has(plan[i].id.replace(/-g\d+$/, ""))) plan.splice(i, 1);
+  console.log(`--exclude 排除 ${before - plan.length} 題`);
+}
+// 題幹(去掉圖)沒有文字的不放回:無法確認選項圖配得對不對
+for (const p of plan) if (p.body.needs_review === false && !String(p.body.question ?? "").replace(/<img[^>]*>/g, "").replace(/<[^>]+>/g, "").replace(/[\s　]/g, "")) {
+  delete p.body.needs_review; p.why.push("題幹空白,不放回");
+}
 const dumpIdx = process.argv.indexOf("--dump");
 if (dumpIdx !== -1) fs.writeFileSync(process.argv[dumpIdx + 1], JSON.stringify(plan), "utf8");
 if (IMAGES) console.log(`本次新產生圖片 ${(bytesOut / 1048576).toFixed(1)} MB`);
