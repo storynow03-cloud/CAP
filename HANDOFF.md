@@ -385,6 +385,36 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-10-04 深夜(續):**救回 411 題隱藏題(程式/資料都備妥,待使用者依序執行,步驟見 task_checklist.md 最上方)**。
+  ① 社會/英文/國文圖:webp 檔名 = LO 圖檔 sha1 → 反查來源(webp-origin.json)→ scripts/rerender-webp.py 重畫;
+  .doc 改取原始 OfficeArt BLIP(scripts/lib/doc_blips.py,LO 轉 docx 會把部分 WMF 改成 PNG);比對前把 LO 洋紅「透明色」當白底。
+  ② 第二輪配對:相似度過不了(舊圖字壞太嚴重/空白)時,兩錨點間唯一一張長寬比差 3% 內的向量圖即配對,一律人工目視。
+  ③ 數學公式:原檔(.doc 其實是 docx)是 OMML → scripts/lib/omml.py 轉 .frac/.sqrt/.ovl/.brace HTML;scripts/omml-formulas.py
+  自動對應 6,179 個、人工挑 35 個;scripts/apply-formulas.mjs 寫 DB(不需部署)。這也修好大量「沒被標記但負號掉了」的公式。
+  ④ 內嵌 Word 表格:render-ole-tables.mjs 加 --uses。⑤ 太小的幾何圖 2.5 倍重畫(同檔名,不改 DB)。
+  ⑥ scripts/unhide-fixed.mjs:放回前會下載正式站圖檔比對,未部署就中止。預計可放回約 330 題,剩約 84 題難救(still-bad.json)。
+  選單 Nav.tsx 改成可換行、不出捲軸(未推)。
+  ⑦ 🔴 Word EQ 公式上標遺失(restore-eq-fields 用純文字還原,10⁶→106、√(25²−7²)→√252−72,**可見題數字錯**):
+  scripts/eq-sup-extract.py(docx 原檔依序取欄位+上標+題號)→ scripts/fix-eq-superscripts.mjs,數學 445 題 856 處;
+  自然:Word SaveAs2 會卡住,改用 scripts/export-eq-sup-word.ps1 直接讀欄位,但上標範圍不準,不套用。
+  ⑨ 22:00~22:10 使用者授權 Claude 執行步驟 1~5(圖覆蓋、公式文字化 694 題、上標 445 題、拆答案放回 1,798 題、表格 3 題),
+  剩 commit+push 與 unhide-fixed 等使用者。
+  ⑧ 非選答案混在題幹:scripts/split-embedded-answers.mjs [--subject] 拆欄位,只有圖全部安全才放回(數學 1,558、其他四科 240 題)。
+
+- 2026-10-04 深夜:**題目附圖全面看圖檢查 + 數學/自然 7,372 張圖重畫上線(commit `6d4a12ac`,已 push、正式站逐位元組確認)**。
+  ① Claude 子代理看完 1,441 頁拼圖(17,333 張附圖),標記 2,294 張(數學 1,948、自然 183、社會 127、英文 26、國文 10),
+  合併腳本 `scripts/merge-image-review.mjs` → data/image-review/flagged.json。
+  ② **根因**:原始 Word 的 WMF/EMF 正常,是 LibreOffice 匯出 HTML 時把向量圖畫成低解析 GIF,字型跑掉(A→Λ、0→C)、
+  細線掉像素(負號消失、細線看起來像虛線)。**舊圖的「虛線」是假象**:掃描 7,372 張原圖,虛線畫筆 0 張。
+  ③ `scripts/rerender-metafiles.py`:Windows GDI+ 從原檔重畫(放大 3 倍畫再縮回),**同檔名同尺寸,DB 不用改**。
+  數學 .doc 其實是 docx(zip)→ 直接讀原檔;自然是真 .doc → LO 轉 docx 取圖;WMF 夾帶 EMF(WMFC)時改畫 EMF。
+  配對:docx 依序取圖 vs lo-html 的 img 順序做 DP 對齊,條件「GDI+ 長寬比 ±10% + 構圖相似度 ≥0.4」
+  (PIL 讀 EMF 邊界不準;PowerShell 輸出中文路徑會亂碼 → 用行號)。
+  ④ 驗證:10 個子代理複核 2,443 組新舊對照(被標記 1,943 + 隨機 500)配錯 0;Claude 親看最低相似度 30~40 張全對。
+  ⑤ 使用者執行 `scripts/apply-rerender.py --apply`(Claude 執行被權限擋)→ 備份在 國中會考-DB備份\2026-10-04-qimg-rerender,可 --restore。
+  **下一步**:沒修到的壞圖(數學/自然公式物件約 200 張 + 社會/英文/國文 webp 約 160 張 + 重畫後仍太小/截斷約 30 張)
+  Claude 逐張複核 → data/image-screen-confirmed.json → 使用者跑 hide-qa-failures.mjs --apply。
+
 - 2026-10-04 晚上:**兩種會考積分、第二層選單、中文姓名登入、圖片看圖檢查準備**。使用者質疑「只做 18 題國文就 B++」→
   cap-predict 改為練習/真題(來源含「國中教育會考」)分開、每科 ≥20 題才給等級(CapScorePanel 共用);主選單下加同類功能切換列;
   題目管理儲存時回報自動結案;中文姓名登入(固定換算 email)。孩子新回報 english-0813694-g3 表格圖字型跑掉 → 依圖上數字+原檔詳解

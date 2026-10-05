@@ -49,7 +49,13 @@
       (還補回線段上劃線、表格負號、不等式解的粗線段)
 - [x] 使用者執行 apply-rerender.py --apply:7,372 張已覆蓋、備份 7,372 張(國中會考-DB備份6-10-04-qimg-rerender);
       本機 next dev 載入確認尺寸不變、顯示正確;tsc 型別檢查通過
-- [ ] 使用者同意後 commit + push(新圖 + 尚未 commit 的功能與腳本)→ 正式站抽查(先備份到 國中會考-DB備份\<日期>-qimg-rerender,可 --restore)
+- [x] commit 6d4a12ac + push(使用者同意);正式站 3 張圖逐位元組與本機相同、登入頁 200
+- [x] 沒修到的壞圖 398 張 Claude 逐張複核(scripts/confirm-sheets.py → data/image-review/confirm/,判定 confirm-decisions.jsonl;
+      拼圖頁被縮小的改用原尺寸複查,救回 2 張)→ 確認壞圖 331 張寫入 data/image-screen-confirmed.json
+      (數學 169、社會 90、自然 50、英文 21、國文 1);hide-qa-failures 試算:可見 85,642 題中要隱藏 411 題
+- [ ] **使用者執行** node scripts/hide-qa-failures.mjs --apply(會自動備份、可 --restore)
+- [ ] 之後可救回(不急):數學約 150 張是 LO 自己的小公式圖(√10、DE 線段、分數、聯立式)→ 可改成 HTML 文字(.sqrt/.ovl/.frac)換掉 img;
+      約 20 張原圖太小的幾何圖 → 放大重畫 + img 加 width 屬性(先備份到 國中會考-DB備份\<日期>-qimg-rerender,可 --restore)
 - [ ] (舊)**下一步(先修虛線再覆蓋)**:虛線變實線的根因 = LibreOffice 把 .doc 轉 .docx 時**重新輸出了 WMF/EMF**(畫筆全變實線)。
       重大發現:**數學 393 個 .doc 其實是 docx(zip)**,裡面就是原始 WMF/EMF → rerender-metafiles.py 的 docx_seq 應改成:
       原檔是 zip 就直接讀原檔(不經 LO);自然 646 個是真 .doc(OLE),用 scripts/lib/doc_blips.py(olefile 已安裝,尚未測過)取原圖。
@@ -67,6 +73,39 @@
 ### C. 等使用者決定
 - [ ] 寵物夥伴 5 個決定(提示來源、用技能的題目金幣、可用模式、每天次數、皮膚取得方式)— 見對話,規劃已提出
 - [ ] 防刷題觸發器(第 5 份 SQL)上線後,用孩子新的作答紀錄驗證(<5 秒、答錯無金幣)
+
+## ▶️ 救回 411 題隱藏題(2026-10-04 深夜,使用者休息中、要求今天處理完整個題庫)
+
+- [x] 使用者執行 hide-qa-failures --apply:可見 85,642 → 85,231(隱藏 411 題,備份 2026-10-04-hide-qa/original-…12-19-21…json)
+- [x] 選單改兩排(Nav.tsx flex-wrap、手機縮小間距)——本機驗證,**等一起推**
+- [x] 社會/英文/國文壞圖:由 webp 雜湊反查 lo-html 來源(data/rerender/webp-origin.json,112/112)→ scripts/rerender-webp.py
+      重畫 65 張,Claude 逐張看 64 張完全正確、1 張缺字排除(data/rerender/exclude.json)
+- [x] 數學公式:原檔是 OMML → scripts/lib/omml.py 轉 HTML(.frac/.sqrt/.ovl/.brace、射線/直線箭頭疊字)
+      scripts/omml-formulas.py 對應 6,179/8,561 個公式(data/rerender/formulas.json);Claude 在瀏覽器抽查 243 個全對
+- [x] 第二輪配對(錨點之間只有一張長寬比差 3% 內的向量圖)+ .doc 直接取原始 BLIP(doc_blips.py)+ 忽略 LO 洋紅底色
+      → 社會/英文/國文再救 36 張、自然/數學再救 28 張(全部 Claude 目視確認;舊圖空白的 5 張用題目文字核對點名)
+- [x] 太小的幾何圖 9 張:2.5 倍重畫(同檔名、不改 DB,顯示變大約 330px)
+- [x] 數學公式段落數量對不上的 36 張:Claude 從候選公式目視挑 35 張(data/rerender/formulas-manual.json)
+- [x] 內嵌物件表格:render-ole-tables.mjs 加 --uses,data/rerender/ole-uses.json → 10 題轉成文字表格(9 題可放回),內容已核對
+      (「以□□取代」是題目刻意的空格,不是缺字)
+- [x] 🔴 新發現:Word EQ 公式的**上標遺失**(10⁶→106、√(25²−7²)→√252−72),在**可見題**裡數字是錯的。
+      scripts/eq-sup-extract.py 從 docx 原檔抽出 1,327 個含上標的 EQ(含題號)→ scripts/fix-eq-superscripts.mjs
+      只在同題號題目逐字找到舊 HTML 才換:445 題、856 處(抽樣 13 組全對)
+- [x] 數學非選「答案混在題幹」:scripts/split-embedded-answers.mjs 拆成題目/答案/詳解;
+      隱藏題的圖沒看過 → 只有圖全部「已重畫/已檢查/會換文字」才放回。預計放回 1,558 題(抽查 30 題拆分正確)
+- [x] 2026-10-04 22:00~22:10 使用者授權後 Claude 執行(全部有備份,在 國中會考-DB備份6-10-04-*):
+      1. apply-rerender --map map-webp.json:覆蓋 126 張新圖(本機,尚未上線)
+      2. apply-formulas:數學 694 題、6,214 個公式圖換成文字(重跑試算 0 題 = 已全部生效)
+      3. fix-eq-superscripts:數學 445 題、856 處補回上標(重跑 0 處);已稽核沒有「無結構純文字」的替換
+      4. split-embedded-answers 五科:放回 數學 1,558、英文 105、社會 77、自然 43、國文 15 = 1,798 題
+         (已確認放回的題目沒有用到「本機已換、尚未上線」的新圖)
+      5. render-ole-tables --uses:3 題換成文字表格(social-8210059 組因圖已重畫、改由 unhide-fixed 放回)
+- [x] 自然科上標:SaveAs2 在本機會卡住 → 改寫 scripts/export-eq-sup-word.ps1(Word 直接讀欄位與上標,641 檔 2 分鐘)
+      結果只對到 1~2 題且 Word 回報的上標範圍不準(連 EQ 代碼都標成上標)→ **不套用**;fix-eq-superscripts 加防護
+- [ ] **等使用者**:6. 同意 commit + push(126 張新圖 + 選單 Nav.tsx + 腳本)→ 等 Vercel 部署
+- [ ] 7. `node scripts/unhide-fixed.mjs --apply`(會先比對正式站圖檔;預計放回約 320 題)
+- [ ] 仍會留隱藏約 84 題(不易救):自然非表格內嵌物件 ~30 張、數學公式找不到原檔對應 24 張、
+      社會原檔就是模糊點陣圖 11 張、零星空白/截斷圖。清單 data/rerender/still-bad.json
 
 ## 2026-10-04 晚上
 

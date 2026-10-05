@@ -106,15 +106,15 @@ export default function Nav() {
 
   return (
     <nav className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center gap-1 overflow-x-auto px-2 py-2 text-sm">
-        <span className="accent-text mr-2 whitespace-nowrap px-2 font-bold">
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-1 px-2 py-2 text-sm">
+        <span className="accent-text mr-1 whitespace-nowrap px-1 font-bold sm:mr-2 sm:px-2">
           會考衝刺站
         </span>
         {LINKS.map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 ${
+            className={`whitespace-nowrap rounded-full px-2 py-1.5 sm:px-3 ${
               isActive(l) ? "accent-bg text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >
@@ -123,14 +123,15 @@ export default function Nav() {
         ))}
         <button
           onClick={signOut}
-          className="ml-auto whitespace-nowrap rounded-full px-3 py-1.5 text-slate-400 hover:bg-slate-100"
+          className="ml-auto whitespace-nowrap rounded-full px-2 py-1.5 text-slate-400 hover:bg-slate-100 sm:px-3"
         >
           登出
         </button>
       </div>
       {subs.length > 1 && (
         <div className="border-t border-slate-100 bg-slate-50/80">
-          <div className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-2 py-1.5 text-xs">
+          {/* 子分頁多(例如管理後台)時自動換行成多排,不出現橫向捲軸 */}
+          <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-x-1 gap-y-1.5 px-2 py-1.5 text-xs">
             {subs.map((s) => (
               <Link
                 key={s.href}

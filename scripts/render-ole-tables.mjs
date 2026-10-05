@@ -9,7 +9,7 @@
 //      轉出多餘的列),才把 <img> 換成表格;通過嚴格檢查才放回題庫
 //      (表格樣式寫在 HTML 裡,不依賴網站 CSS,所以不用等部署)
 //
-// 用法:node scripts/render-ole-tables.mjs [--dump <檔>] | --apply | --restore <備份檔>
+// 用法:node scripts/render-ole-tables.mjs [--uses <清單>] [--dump <檔>] | --apply | --restore <備份檔>
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -27,7 +27,9 @@ if (restoreIdx !== -1) {
 const SOFFICE = "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
 const LO_HTML = path.join(ROOT, "data", "lo-html");
 const ODT = path.join(ROOT, "data", "lo-odt");
-const uses = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "lowres-images.json"), "utf8"));
+// --uses <檔>:改用指定清單(例:data/rerender/ole-uses.json,2026-10-04 看圖檢查確認壞掉的內嵌物件圖)
+const usesIdx = process.argv.indexOf("--uses");
+const uses = JSON.parse(fs.readFileSync(usesIdx !== -1 ? path.resolve(process.argv[usesIdx + 1]) : path.join(ROOT, "data", "lowres-images.json"), "utf8"));
 const manualBroken = new Set(
   fs.readFileSync(path.join(ROOT, "scripts", "hide-missing-figure-questions.mjs"), "utf8")
     .match(/const BROKEN = \[([\s\S]*?)\];/)[1].match(/"[a-z]+-[\d-]+"/g).map((s) => s.slice(1, -1))

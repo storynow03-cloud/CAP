@@ -1,6 +1,6 @@
 # 把重畫好的圖(data/rerender/out)覆蓋到 web/public/qimg;覆蓋前把原圖備份到 D:\Claude\國中會考-DB備份\<日期>-qimg-rerender\
 # 只換 data/rerender/map.json 裡、且不在排除清單(data/rerender/exclude.json,字串陣列)裡的圖。DB 不用改(同檔名、同尺寸)。
-# 用法:python scripts/apply-rerender.py            → 只列出會換幾張
+# 用法:python scripts/apply-rerender.py [--map map-webp.json]   → 只列出會換幾張(預設 map.json)
 #       python scripts/apply-rerender.py --apply    → 備份 + 覆蓋
 #       python scripts/apply-rerender.py --restore <備份資料夾>  → 從備份還原
 import datetime, json, os, shutil, sys
@@ -19,7 +19,8 @@ if "--restore" in sys.argv:
             shutil.copy2(os.path.join(dp, f), os.path.join(PUB, rel)); n += 1
     print(f"已還原 {n} 張"); sys.exit(0)
 
-items = json.load(open(os.path.join(WORK, "map.json"), encoding="utf-8"))
+MAP = sys.argv[sys.argv.index("--map") + 1] if "--map" in sys.argv else "map.json"
+items = json.load(open(os.path.join(WORK, MAP), encoding="utf-8"))
 ex_path = os.path.join(WORK, "exclude.json")
 exclude = set(json.load(open(ex_path, encoding="utf-8"))) if os.path.exists(ex_path) else set()
 todo = [m["p"] for m in items if m["p"] not in exclude]

@@ -11,9 +11,10 @@ ap.add_argument("--flagged-only", action="store_true")
 ap.add_argument("--per-page", type=int, default=10)
 ap.add_argument("--list", default="", help="只看這個 JSON 清單(字串陣列或 [{p}])裡的圖")
 ap.add_argument("--out", default="compare")
+ap.add_argument("--map", default="map.json", help="對應表檔名(data/rerender/ 底下)")
 args = ap.parse_args()
 
-items = [m["p"] for m in json.load(open(os.path.join(WORK, "map.json"), encoding="utf-8"))]
+items = [m["p"] for m in json.load(open(os.path.join(WORK, args.map), encoding="utf-8"))]
 if args.flagged_only:
     flagged = {f["p"] for f in json.load(open(os.path.join(ROOT, "data/image-review/flagged.json"), encoding="utf-8"))}
     items = [p for p in items if p in flagged]
