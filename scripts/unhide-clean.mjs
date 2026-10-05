@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
 if (restoreIdx !== -1) {
@@ -33,7 +34,7 @@ const back = [], why = {};
 const skip = (k) => (why[k] = (why[k] ?? 0) + 1);
 for (const q of rows) {
   if (!q.needs_review) { skip("已是可見"); continue; }
-  if (problems(q).length) { skip("嚴格檢查沒過"); continue; }
+  if (problems(q).concat(visibleProblems(q)).length) { skip("嚴格檢查沒過"); continue; }
   if (manual.has(q.id)) { skip("人工缺圖清單"); continue; }
   if (reported.has(q.id)) { skip("有題目回報"); continue; }
   const srcs = [...[q.question, ...(q.options ?? []), q.answer_text ?? ""].join("\n").matchAll(/<img[^>]*src="([^"]+)"/g)].map((m) => m[1]);

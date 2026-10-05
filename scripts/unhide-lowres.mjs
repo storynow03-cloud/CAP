@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
 if (restoreIdx !== -1) {
@@ -28,7 +29,7 @@ const skip = (k) => (why[k] = (why[k] ?? 0) + 1);
 for (const s of ["social", "chinese", "english"]) {
   const rows = await fetchAll(`questions?select=id,subject,type,question,options,answer,answer_text,explanation,needs_review&subject=eq.${s}&needs_review=eq.true`);
   for (const q of rows) {
-    const p = problems(q);
+    const p = [...problems(q), ...visibleProblems(q)];
     if (!p.includes("低解析圖")) continue;
     if (p.some((x) => x !== "低解析圖")) { skip("還有其他問題"); continue; }
     if (manual.has(q.id)) { skip("人工缺圖清單"); continue; }

@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 import { readDocx, tokens, toHtml, convertOmml, slugOf } from "./docx-question.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
@@ -138,7 +139,7 @@ for (const { q, got } of parsed) {
   const sim = similar(plain(qHtml), plain(q.question));
   if (sim < 0.8) { bump("題幹文字差太多"); continue; }
   const fixed = { ...q, question: qHtml, options: oHtml };
-  const p = problems(fixed);
+  const p = [...problems(fixed), ...visibleProblems(fixed)];
   const srcs = [...[qHtml, ...(oHtml ?? [])].join("\n").matchAll(/<img[^>]*src="([^"]+)"/g)].map((x) => x[1]);
   if (srcs.some((s) => bad.has(s))) p.push("有確認壞掉的圖");
   if (srcs.some((s) => !seen.has(s))) p.push("有沒看過的圖");

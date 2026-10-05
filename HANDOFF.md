@@ -385,6 +385,14 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-10-05 夜間(使用者授權全部做完、含 commit/push):**可見題 87,351 → 88,905**,commit `2f419e77`(+ 收尾 commit)。
+  ① 數學公式全面對應(8,561/8,561;排除檔首 21×21 頁首圖;omml.py 弧/矩陣),再換 320 題。
+  ② 低解析圖(社會為主)2 倍重畫 2,119 張、add-img-width 保持顯示大小,放回 1,207 題;lowres-images.json 2,308→141。
+  ③ 檢查全過卻隱藏的 204 題看圖後放回(unhide-clean)。④ 數學缺字題從原始 docx 重建(rebuild-math-hidden + docx-question),放回 207 題。
+  ⑤ 🔴 lib/rest.mjs fetchAll 分頁沒有 order 會漏題/重複 → 已自動補 order=id(之前不帶 order 的腳本都可能漏)。
+  ⑥ 放回腳本漏了 hide-qa 的額外規則 → 25 題重新隱藏;新增 lib/visible-checks.mjs 並全部套用。
+  剩餘隱藏約 10,500 題,其中約 6,400 是題組母題(正常),其餘見 task_checklist。
+
 - 2026-10-05:使用者同意後 commit `848e622e` + push(126 張新圖、選單兩排、腳本),正式站確認新圖上線;
   unhide-fixed 放回 320 題。411 題隱藏題只剩 88 題(still-bad.json:模糊點陣原圖、非表格內嵌物件、找不到原檔的公式)。
 

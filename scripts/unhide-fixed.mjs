@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, BACKUP_DIR, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
 if (restoreIdx !== -1) {
@@ -38,7 +39,7 @@ const back = [], reasons = {};
 for (const q of rows) {
   if (!q.needs_review) continue;
   const srcs = srcsOf(q);
-  const r = [...problems(q)];
+  const r = [...problems(q), ...visibleProblems(q)];
   if (srcs.some((s) => stillBad.has(s))) r.push("還有沒修好的壞圖");
   if (srcs.some((s) => formulaImgs.has(s))) r.push("公式圖還沒換(先跑 apply-formulas.mjs --apply)");
   if (r.length) { for (const k of r) reasons[k] = (reasons[k] ?? 0) + 1; continue; }

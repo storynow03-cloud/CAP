@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
 if (restoreIdx !== -1) {
@@ -46,7 +47,7 @@ for (const q of rows) {
   const after = { question, answer_text: ans };
   if (exp && !(q.explanation ?? "").trim()) after.explanation = exp;
   stat.拆分++;
-  const p = problems({ ...q, ...after });
+  const p = [...problems({ ...q, ...after }), ...visibleProblems({ ...q, ...after })];
   if (unsafeImgs(after.question, ...(q.options ?? []), after.answer_text).length) p.push("含未檢查過的圖");
   if (p.length) { for (const r of p) stat.拆了但仍不合格[r] = (stat.拆了但仍不合格[r] ?? 0) + 1; }
   else { after.needs_review = false; stat.放回++; }

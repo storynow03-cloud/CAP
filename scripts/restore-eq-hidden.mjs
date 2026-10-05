@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll, patchQuestion, runPool, writeBackup, restoreBackup } from "./lib/rest.mjs";
 import { problems } from "./lib/question-checks.mjs";
+import { visibleProblems } from "./lib/visible-checks.mjs";
 import { blocks, restoreQuestion } from "./lib/eq-restore-core.mjs";
 
 const restoreIdx = process.argv.indexOf("--restore");
@@ -43,7 +44,7 @@ for (const q of rows) {
     explanation: swapF(base.explanation), answer_text: swapF(base.answer_text) };
   if (!cands.length) bump("原檔沒有這題的 EQ");
   else if (!res) bump(`EQ 對不上:${(err?.message ?? "?").replace(/\(.*\)/, "")}`);
-  const p = problems(fixed);
+  const p = [...problems(fixed), ...visibleProblems(fixed)];
   const srcs = [...[fixed.question, ...(fixed.options ?? []), fixed.answer_text ?? ""].join("\n").matchAll(/<img[^>]*src="([^"]+)"/g)].map((x) => x[1]);
   if (srcs.some((s) => bad.has(s))) p.push("有確認壞掉的圖");
   if (srcs.some((s) => !seen.has(s))) p.push("有沒看過的圖");
