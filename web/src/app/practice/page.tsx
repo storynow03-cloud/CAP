@@ -7,6 +7,8 @@ import Quiz from "@/components/Quiz";
 import WrittenQuiz from "@/components/WrittenQuiz";
 import { SUBJECTS, type Question } from "@/lib/types";
 import { SOCIAL_BRANCHES, chapterInfo, socialBranch } from "@/lib/chapter";
+import { hasLessonNotes, lessonNote } from "@/lib/lesson-notes";
+import { ENGLISH_GRAMMAR } from "@/lib/grammar-points";
 
 interface TopicRow {
   topic: string;
@@ -79,6 +81,12 @@ export default function PracticePage() {
   const [topics, setTopics] = useState<TopicRow[]>([]);
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [openGroups, setOpenGroups] = useState<string[]>([]);
+  // 依學習重點搜尋單元(例:輸入「現在完成式」找出是哪一課)
+  const [keyword, setKeyword] = useState("");
+  // 英文可「依文法」練習:選康軒知識點(文法細項),不選 = 清單上全部文法
+  const [pickBy, setPickBy] = useState<"unit" | "grammar">("unit");
+  const [selectedCodes, setSelectedCodes] = useState<string[]>([]);
+  const [openGrammar, setOpenGrammar] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState(0);
   const [count, setCount] = useState(10);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -96,6 +104,9 @@ export default function PracticePage() {
   useEffect(() => {
     setSelectedTopics([]);
     setOpenGroups([]);
+    setKeyword("");
+    setPickBy("unit");
+    setSelectedCodes([]);
     const supabase = createClient();
     supabase.rpc("get_topics", { subj: subject }).then(({ data }) => {
       setTopics((data ?? []) as TopicRow[]);
@@ -106,9 +117,13 @@ export default function PracticePage() {
     setState("loading");
     setError("");
     try {
+      const byGrammar = grammarMode && format === "choice";
       const opts = {
         subject,
-        topics: selectedTopics,
+        topics: byGrammar ? [] : selectedTopics,
+        knowledgeCodes: byGrammar
+          ? selectedCodes.length ? selectedCodes : ENGLISH_GRAMMAR.flatMap((g) => g.points.map((p) => p.code))
+          : undefined,
         difficulty: difficulty || undefined,
         count,
       };
@@ -132,6 +147,20 @@ export default function PracticePage() {
       setState("setup");
     }
   }
+
+  const branchTopics = topics.filter(
+    (t) => subject !== "social" || branch === "all" || socialBranch({ subject, subtopic: t.subtopic, source: t.source }) === branch
+  );
+  const kw = keyword.trim().toLowerCase();
+  const grammarMode = subject === "english" && format === "choice" && pickBy === "grammar";
+  const grammarGroups = ENGLISH_GRAMMAR.map((g) => ({
+    ...g,
+    points: kw ? g.points.filter((p) => `${g.name} ${p.name}`.toLowerCase().includes(kw)) : g.points,
+  })).filter((g) => g.points.length);
+  const visibleTopics = kw
+    ? branchTopics.filter((t) => `${t.topic} ${lessonNote(subject, t.volume, t.topic)}`.toLowerCase().includes(kw))
+    : branchTopics;
+  const matchedNames = kw ? visibleTopics.map((t) => t.topic) : [];
 
   if (state === "quiz" && userId) {
     return format === "written" ? (
@@ -211,6 +240,96 @@ export default function PracticePage() {
           </p>
         )}
 
+        {subject === "english" && format === "choice" && (
+          <div className="mt-5 flex gap-2">
+            {([["unit", "依單元(課次)"], ["grammar", "依文法"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => { setPickBy(k); setKeyword(""); }}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
+                  pickBy === k ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {grammarMode && (
+          <>
+            <div className="mb-2 mt-4 flex items-center justify-between">
+              <label className="text-sm font-semibold">文法(可複選,不選 = 全部)</label>
+              {selectedCodes.length > 0 && (
+                <button onClick={() => setSelectedCodes([])} className="text-xs font-semibold text-indigo-600 hover:underline">
+                  已選 {selectedCodes.length} 項・清除
+                </button>
+              )}
+            </div>
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="搜尋文法,例:現在完成式、被動、關係代名詞"
+              className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            />
+            <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-2">
+              {!grammarGroups.length && (
+                <p className="py-3 text-center text-sm text-slate-400">找不到「{keyword.trim()}」,換個說法試試(例:完成式、比較級、介系詞)</p>
+              )}
+              {grammarGroups.map((g) => {
+                const codes = g.points.map((p) => p.code);
+                const chosen = codes.filter((c) => selectedCodes.includes(c)).length;
+                const open = !!kw || openGrammar.includes(g.group);
+                return (
+                  <div key={g.group}>
+                    <div className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5">
+                      <button
+                        onClick={() => setOpenGrammar((prev) => (open ? prev.filter((x) => x !== g.group) : [...prev, g.group]))}
+                        className="flex flex-1 items-center gap-1.5 text-left text-sm font-semibold text-slate-700"
+                      >
+                        <span className="text-xs text-slate-400">{open ? "▾" : "▸"}</span>
+                        {g.name}
+                        <span className="text-xs font-normal text-slate-400">
+                          {g.points.length} 項{chosen > 0 && `・已選 ${chosen}`}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() =>
+                          setSelectedCodes((prev) =>
+                            chosen === codes.length ? prev.filter((x) => !codes.includes(x)) : [...new Set([...prev, ...codes])]
+                          )
+                        }
+                        className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-indigo-600 ring-1 ring-slate-200"
+                      >
+                        {chosen === codes.length ? "取消整類" : "選整類"}
+                      </button>
+                    </div>
+                    {open && (
+                      <div className="mt-1 mb-2 space-y-0.5 pl-5">
+                        {g.points.map((p) => (
+                          <label key={p.code} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm hover:bg-indigo-50">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 shrink-0 accent-indigo-600"
+                              checked={selectedCodes.includes(p.code)}
+                              onChange={(e) =>
+                                setSelectedCodes((prev) => (e.target.checked ? [...prev, p.code] : prev.filter((x) => x !== p.code)))
+                              }
+                            />
+                            <span className="flex-1">{p.name}</span>
+                            <span className="shrink-0 text-xs text-slate-400">約 {p.count} 題</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {!grammarMode && (<>
         <div className="mb-2 mt-5 flex items-center justify-between">
           <label className="text-sm font-semibold">
             單元(可複選,不選 = 全部)
@@ -224,13 +343,32 @@ export default function PracticePage() {
             </button>
           )}
         </div>
+        {hasLessonNotes(subject) && (
+          <div className="mb-2 flex items-center gap-2">
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder={subject === "english" ? "搜尋文法或課名,例:現在完成式、被動語態" : "搜尋作者、文體或課名,例:沈復、論說文、新詩"}
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+            />
+            {kw && matchedNames.length > 0 && (
+              <button
+                onClick={() => setSelectedTopics((prev) => [...new Set([...prev, ...matchedNames])])}
+                className="shrink-0 rounded-full bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                全選符合的 {matchedNames.length} 課
+              </button>
+            )}
+          </div>
+        )}
         <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-300 p-2">
-          {groupByVolume(
-            topics.filter((t) => subject !== "social" || branch === "all" || socialBranch({ subject, subtopic: t.subtopic, source: t.source }) === branch)
-          ).map((g) => {
+          {kw && !matchedNames.length && (
+            <p className="py-3 text-center text-sm text-slate-400">找不到「{keyword.trim()}」,換個說法試試{subject === "english" ? "(例:完成式、比較級、關係代名詞)" : "(例:作者名、記敘文、譬喻)"}</p>
+          )}
+          {groupByVolume(visibleTopics).map((g) => {
             const names = g.topics.map((t) => t.topic);
             const chosen = names.filter((n) => selectedTopics.includes(n)).length;
-            const open = openGroups.includes(g.label);
+            const open = !!kw || openGroups.includes(g.label);
             return (
               <div key={g.label}>
                 <div className="flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1.5">
@@ -280,7 +418,12 @@ export default function PracticePage() {
                             )
                           }
                         />
-                        <span className="flex-1">{chapterInfo({ subject, topic: t.topic, subtopic: t.subtopic, source: t.source }).unit || t.topic}</span>
+                        <span className="flex-1">
+                          {chapterInfo({ subject, topic: t.topic, subtopic: t.subtopic, source: t.source }).unit || t.topic}
+                          {lessonNote(subject, t.volume, t.topic) && (
+                            <span className="block text-xs text-slate-500">📌 {lessonNote(subject, t.volume, t.topic)}</span>
+                          )}
+                        </span>
                         <span className="shrink-0 text-xs text-slate-400">{t.cnt} 題</span>
                       </label>
                     ))}
@@ -293,6 +436,8 @@ export default function PracticePage() {
             <p className="py-3 text-center text-sm text-slate-400">載入單元中…</p>
           )}
         </div>
+
+        </>)}
 
         <label className="mb-2 mt-5 block text-sm font-semibold">難度</label>
         <div className="flex gap-2">

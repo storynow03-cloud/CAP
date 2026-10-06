@@ -11,11 +11,29 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/** 自由練習選題(topics 可複選,空陣列 = 全部單元) */
+/**
+ * 自由練習選題(topics 可複選,空陣列 = 全部單元)。
+ * knowledgeCodes:依文法練習(英文),康軒知識點代碼或代碼前綴(例 JEN020106 = 整個大類),
+ * 題目的 knowledge_code 欄位(可能「;」串多個)包含任一個就算;有指定時不看 topics。
+ */
 export async function pickPracticeQuestions(
   supabase: SupabaseClient,
-  opts: { subject: string; topics?: string[]; difficulty?: number; count: number }
+  opts: { subject: string; topics?: string[]; difficulty?: number; count: number; knowledgeCodes?: string[] }
 ): Promise<Question[]> {
+  if (opts.knowledgeCodes?.length) {
+    let q = supabase
+      .from("questions")
+      .select("*")
+      .eq("subject", opts.subject)
+      .eq("needs_review", false)
+      .eq("type", "single_choice")
+      .or(opts.knowledgeCodes.map((c) => `knowledge_code.ilike.%${c.replace(/[^A-Za-z0-9]/g, "")}%`).join(","))
+      .limit(1500);
+    if (opts.difficulty) q = q.eq("difficulty", opts.difficulty);
+    const { data, error } = await q;
+    if (error) throw error;
+    return shuffle(data ?? []).slice(0, opts.count);
+  }
   const picked = opts.topics?.length ? opts.topics : null;
   let q = supabase
     .from("questions")
