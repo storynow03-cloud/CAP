@@ -5,6 +5,14 @@
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
+> **2026-10-05 收工交接(最新,先看這段)**:正式站 https://cap-three-ruddy.vercel.app 最新部署 commit `16afda37`(之後只有本機
+> split-groups.mjs/文件未 commit)。**可見題 91,139 題**;全庫 hide-qa-failures 試算 0 題。先讀 task_checklist.md 最上方。
+> 這兩天:題目附圖全面看圖 + 從原檔重畫(數學/自然 7,372、社會等 2,119+126)、LO 匯出失敗圖從 .doc 救回 1,498 張、
+> 數學公式 OMML→HTML(8,561 全對應)、EQ 上標補回、非選答案拆欄位、數學隱藏題由原始 docx 重建、題組小題補圖與重新拆題。
+> 重要工具:scripts/lib/visible-checks.mjs(放回前必過)、lib/rest.mjs fetchAll 已自動 order=id(以前分頁會漏題)。
+> 自然科本輪刻意不放回(無法確認公式完整)。data/lowres-images.json 只在本機(已移除重畫好的,剩 141)。
+> 使用者偏好:品質優先、可長時間自主工作;commit/push 依當次授權。
+
 > **2026-10-04 晚上交接(最新,先看這段)**:**先讀 task_checklist.md 開頭「▶️ 新對話從這裡接續」**。
 > 進行中:用 Claude 子代理看完 17,333 張題目附圖(拼圖頁已備妥在 data/image-review/,1,441 頁)。
 > 已上線(commit 24d8320a):選單 4 大類、兩個積分榜(舊版)、每日兌換上限 50、防刷題提示、計算紙計算區。
@@ -384,6 +392,22 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
 
 ## 📋 進度日誌(每次里程碑往上加一行)
+
+- 2026-10-06:**可見題 91,139 → 91,724**。split-groups 加「寬鬆標記」(省略作答括號、ˉ、⑴①)、「配合題」(共用參考選項/短文填空)、
+  答案欄帶「詳解：」也能拆、小題詳解清理;新增 618 小題(可見 588)。子代理全數複核:答案錯位 0,抓出 (F) 選項黏進 (E)、
+  (A) 黏在說明句等 → 加防護;排除清單 data/rerender/split-exclude.json。🔴 發現**已上線題組**附圖黏在上一小題選項 D、
+  或圖在第 1 小題而第 2 小題問「附圖」卻沒圖 → scripts/fix-group-tail-images.mjs 修 214 題(45 題複製附圖、3 題仍缺表隱藏)。
+  晚上(使用者要求「確定是好的題目才放進題庫」):fix-single-tail-images 修 71 題一般題附圖黏選項 D;fix-label-answers 放回 17 題
+  (答案尾巴黏「配合題/問答」);split-groups 混合模式(選擇→單選、非選→non_choice 自評)新增 219 小題(可見 185)。
+  子代理全數複核,有疑慮一律隱藏(排除清單 data/rerender/split-exclude.json)。**可見 91,926 / 隱藏 8,763**。
+  前端選項字母 A~E → A~H(Quiz、admin/questions、admin/reports)+ question-checks 選項上限 5→8,**未 commit/部署**;
+  split-groups 加 --allow-fgh 開關:配合題 34 組(可見 141)**必須等前端上線後**才加 --allow-fgh --apply。
+  新發現:可見 105 題選項 D 尾巴帶「【10X教育會考】」與「【注釋】」(待處理)。
+
+- 2026-10-05 收工:**可見題 91,139**(10/4 早 85,231)。本日最後一步:split-groups 答案尾巴黏分類標題(「(3)A簡答」)
+  → 清掉後新拆 445 小題(社會 388、國文 50 可見);43 張沒看過的圖 Claude 看過正常;加上 visibleProblems。
+  **下一步**:split-groups 拆不了的(國文「找不到第 1 小題」124、社會答案格式 108、選項數不一致 39…)、
+  自然科公式完整性(需 Word 讀 EQ)、各科非選無答案。未 commit:scripts/split-groups.mjs(本次改動)、HANDOFF、checklist。
 
 - 2026-10-05 晚上:**可見題 88,905 → 90,701**(commit 81f44338、961856dd)。救回 LO 匯出失敗的社會/國文/英文附圖 1,498 張
   (recover-lo-failed.py:.doc 原始 BLIP + 序列對齊;數量不同時用 img 標籤長寬比)、patch-lo-images 支援題組小題(前後文對應)、

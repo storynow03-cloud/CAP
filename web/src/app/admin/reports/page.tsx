@@ -13,7 +13,7 @@ const REASON_LABEL: Record<string, string> = {
   bad_options: "選項有問題",
   other: "其他",
 };
-const LETTERS = ["A", "B", "C", "D", "E"];
+const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]; // 配合題可能有 6~8 個參考選項(2026-10-06)
 
 interface Item {
   question: (ChapterFields & {

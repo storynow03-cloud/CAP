@@ -55,7 +55,7 @@ export function problems(q) {
   if ((q.subject === "math" || q.subject === "science") && looksDegraded(qp)) p.push("疑似掉字");
   if (q.type === "single_choice") {
     if (q.answer == null) p.push("無答案");
-    if (!q.options || q.options.length < 3 || q.options.length > 5) p.push("選項數異常");
+    if (!q.options || q.options.length < 3 || q.options.length > 8) p.push("選項數異常"); // 配合題可有 6~8 個參考選項(前端 A~H,2026-10-06)
     else {
       if (q.options.some((o) => !plain(o).trim() && !hasImg(o))) p.push("選項空白");
       if (q.answer != null && q.answer >= q.options.length) p.push("答案超出選項");

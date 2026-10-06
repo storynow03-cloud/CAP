@@ -11,7 +11,7 @@ import ChapterTag from "@/components/ChapterTag";
 import ScratchPad from "@/components/ScratchPad";
 import { reviewProgressText, type ReviewState } from "@/lib/review";
 
-const LETTERS = ["A", "B", "C", "D", "E"];
+const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]; // 配合題可能有 6~8 個參考選項(2026-10-06)
 
 export interface QuizResult {
   questionId: string;

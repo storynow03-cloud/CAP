@@ -25,7 +25,7 @@ interface Q extends ChapterFields {
   difficulty: number;
 }
 
-const LETTERS = ["A", "B", "C", "D", "E"];
+const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]; // 配合題可能有 6~8 個參考選項(2026-10-06)
 
 export default function AdminQuestionsPage() {
   return (
