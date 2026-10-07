@@ -92,7 +92,7 @@
       收錄 high + ≥5 題 + 比例 ≥50% 的 58 個細項(19 大類,約 3,200 題);比例偏低 4 個親讀題目(2 個改名)。
       web/src/lib/grammar-points.ts(新)、engine.pickPracticeQuestions 加 knowledgeCodes、練習頁英文「依單元 / 依文法」切換 + 搜尋。
       驗證:查詢「現在完成式」→ 73 題且抽樣全是現在完成式;本機選文法開始練習,第 1 題 has been(未作答)。對照表 data/grammar-points-audit.md
-- [ ] **等使用者決定**:commit + push 上線(第 1 步學習重點 + 第 2 步依文法練習一起)
+- [x] 使用者同意 commit f4c86033 + push(教材全文不進 git,.gitignore 加 data/textbook-txt/)→ Vercel success;正式站練習頁英文「依文法」19 大類顯示正常(Claude 只看選單)
 
 ## ▶️ 2026-10-06 深夜:自由練習「學習重點 + 搜尋」(使用者睡前授權依建議實作,明早決定)
 
