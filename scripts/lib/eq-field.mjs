@@ -138,6 +138,19 @@ function renderCmd(n) {
       if (nonBlank.length === 2 && arcOf(nonBlank[0])) {
         return `<span style="display:inline-block;border-top:1.5px solid currentColor;border-radius:50% 50% 0 0/6px 6px 0 0;padding:1px 1px 0;line-height:1.1">${render(nonBlank[1]).trim()}</span>`;
       }
+      // 疊一個箭頭(\s\up8(←→) = 直線、\s\up8(－→) / ( →) = 射線,2026-10-08):字母上方畫箭頭。
+      // 用行內樣式(不必改網站 CSS / 部署),寫法比照上面的弧。
+      const arrowOf = (a) => {
+        const cmd = a.filter((x) => !(x.t === "text" && !x.v.trim()));
+        const s = cmd.length === 1 && cmd[0].t === "cmd" && cmd[0].name === "s" && cmd[0].args.length === 1 ? textOf(cmd[0].args[0]) : textOf(a);
+        const v = s.replace(/[\s　]/g, "");
+        if (/^(←→|↔)$/.test(v)) return "↔";
+        if (/^(－→|-→|—→|→)$/.test(v)) return "→";
+        return null;
+      };
+      if (nonBlank.length === 2 && arrowOf(nonBlank[0])) {
+        return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:bottom;line-height:1"><span style="font-size:0.75em;line-height:0.7">${arrowOf(nonBlank[0])}</span><span>${render(nonBlank[1]).trim()}</span></span>`;
+      }
       // ＝ 與 ～ 疊在一起 = 全等符號
       if (nonBlank.length === 2 && new Set(nonBlank.map((a) => textOf(a).trim())).size === 2 &&
           nonBlank.every((a) => /^[＝=～~]$/.test(textOf(a).trim()))) return "≅";
