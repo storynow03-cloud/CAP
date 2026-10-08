@@ -20,6 +20,9 @@ import path from "node:path";
 
 const APPLY = process.argv.includes("--apply");
 const ALLOW_FGH = process.argv.includes("--allow-fgh");
+// --only social,chinese:只處理指定科目(2026-10-07:自然科要等和原檔對照公式後再寫入)
+const onlyIdx = process.argv.indexOf("--only");
+const ONLY = onlyIdx !== -1 ? new Set(process.argv[onlyIdx + 1].split(",")) : null;
 const skippedFgh = new Set();
 const undoIdx = process.argv.indexOf("--undo");
 if (undoIdx !== -1) {
@@ -67,7 +70,7 @@ function parseAnswers(t) {
 
 // 寬鬆標記(2026-10-06,嚴格標記找不到時才用):作答括號可省略(但要在行首或句末標點後)、括號內是「ˉ」、
 // 小題號寫成 ⑴ / ①。拆完仍要通過「小題數 = 答案數、選項數一致」等條件,誤判的會被擋下
-const LOOSE = new RegExp(String.raw`(?:[（(][\s　ˉ]*[）)]\s*|(?<=(?:^|[\n。？?！!」』：:；;])[\s　]*))(?:[（(]\s*(${DIG})\s*[）)]|(${DIG})(?![0-9０-９])\s*[.．、]?|([⑴-⒇①-⑳]))[\s　]*`, "g");
+const LOOSE = new RegExp(String.raw`(?:[（(][\s　ˉ]*[）)]\s*|(?<=(?:^|[\n。？?！!」』：:；;】）)])[\s　]*))(?:[（(]\s*(${DIG})\s*[）)]|(${DIG})(?![0-9０-９])\s*[.．、]?|([⑴-⒇①-⑳]))[\s　]*`, "g");
 
 /** 找出字串中「編號為 k」的小題標記(取最後一個) */
 function findMarker(s, k, re = MARKER) {
@@ -118,6 +121,8 @@ const makeSub = (q, i, question, options, answer, explanation0, explanation = ti
 });
 
 const IMG = /<img[^>]*>/g;
+// 題目裡的出處標記(「【107教育會考】」「【110教育會考（補考）】」)→ 拆題時拿掉(source 欄已有出處)
+const SRC_TAG = /【[^】]{0,20}(?:會考|基測|學測|模擬考|段考)[^】]{0,12}】/g;
 const mentionsFig = (t) => /圖|表格|[下上附此該本左右甲乙丙丁]表|表[中內裡上][的所]?|統計表|[如見依由據]表/.test(String(t ?? "").replace(/<[^>]+>/g, ""));
 /** 附圖放錯小題(2026-10-06):第 1 小題題幹尾巴的圖,其實是第 2 小題「附圖中的何處」要用的。
  *  有小題提到圖/表、自己卻沒有圖 → 把「題幹沒提到圖的小題」題幹裡的圖複製過去(stems、extra 就地修改) */
@@ -137,8 +142,8 @@ function splitWith(q, answers, re) {
   const n = answers.length;
   const m1 = findMarker(q.question, 1, re);
   if (!m1) return { fail: "找不到第 1 小題" };
-  const passage = q.question.slice(0, m1.index).trim();
-  const stems = [q.question.slice(m1.index + m1[0].length).trim()];
+  const passage = q.question.slice(0, m1.index).replace(SRC_TAG, "").trim();
+  const stems = [q.question.slice(m1.index + m1[0].length).replace(SRC_TAG, "").trim()];
   const groups = [[]];
   for (const o of q.options) {
     const k = groups.length + 1;
@@ -150,9 +155,12 @@ function splitWith(q, answers, re) {
     } else groups[groups.length - 1].push(o);
   }
   if (groups.length !== n) return { fail: `小題數 ${groups.length}≠答案數 ${n}` };
-  const size = groups[0].length;
-  if (size < 3 || size > 5 || groups.some((g) => g.length !== size)) return { fail: "選項數不一致" };
-  if (answers.some((a) => a >= size)) return { fail: "答案超出選項" };
+  // 每小題各自 3~5 個選項(同一題組可能有的小題只有甲乙丙三個選項,2026-10-07 放寬);
+  // 防護:不能有空白選項(原本是圖但遺失)、選項裡不能夾著 (A)~(E) 標記(兩個選項黏在一起)
+  if (groups.some((g) => g.length < 3 || g.length > 5)) return { fail: "選項數不一致" };
+  if (groups.some((g) => g.some((o) => !String(o).replace(/<img[^>]*>/g, "x").trim()))) return { fail: "有空白選項" };
+  if (groups.some((g) => g.some((o) => /[（(]\s*[A-EＡ-Ｅ]\s*[）)]|[（(]\s*[A-EＡ-Ｅ](?=[^\sA-Za-z）)])|[\s　][A-EＡ-Ｅ][）)]|^[甲乙丙丁戊己庚][\s　]+[甲乙丙丁戊己庚]$/.test(String(o).replace(/<img[^>]*>/g, "").trim())))) return { fail: "選項黏在一起" };
+  if (answers.some((a, i) => a >= groups[i].length)) return { fail: "答案超出選項" };
   const exps = splitExplanation(q.explanation, n);
   // 小題之間的附圖會黏在上一小題最後一個選項尾巴(「丁\n<img>」)。依題幹有沒有提到圖/表決定給哪一小題;
   // 兩邊都提到或都沒提到 → 無法判斷,兩小題都放(多一張圖無害,少一張圖題目就錯)(2026-10-06)
@@ -370,17 +378,21 @@ function split(q0) {
 
 // 人工/子代理檢查排除的小題(建立但隱藏):data/rerender/split-exclude.json = [{id, why}]
 const EXCLUDE = new Map((fs.existsSync("data/rerender/split-exclude.json") ? JSON.parse(fs.readFileSync("data/rerender/split-exclude.json", "utf8")) : []).map((x) => [x.id, x.why]));
+// 只拿掉詳解的小題(題目本身沒問題,詳解錯或對不上):data/rerender/split-drop-expl.json = [{id, why}](可填母題 id = 整組)
+const DROP_EXPL = new Map((fs.existsSync("data/rerender/split-drop-expl.json") ? JSON.parse(fs.readFileSync("data/rerender/split-drop-expl.json", "utf8")) : []).map((x) => [x.id, x.why]));
 const rows = await fetchAll("questions?select=*&needs_review=eq.true&type=eq.single_choice&answer=is.null&order=id");
 const existing = new Set((await fetchAll("questions?select=id&id=like.*-g*&order=id")).map((r) => r.id));
 console.log(`候選(隱藏、單選、沒答案):${rows.length} 題`);
-const fails = {}, out = [];
+const fails = {}, out = [], failRows = []; // failRows:--fails <檔> 輸出拆不了的題組(分析用)
 let groupsOk = 0;
 for (const q of rows) {
+  if (ONLY && !ONLY.has(q.subject)) continue;
   const r = split(q);
-  if (r.fail) { fails[`${q.subject}|${r.fail}`] = (fails[`${q.subject}|${r.fail}`] ?? 0) + 1; continue; }
+  if (r.fail) { fails[`${q.subject}|${r.fail}`] = (fails[`${q.subject}|${r.fail}`] ?? 0) + 1; failRows.push({ ...q, _fail: r.fail }); continue; }
   groupsOk++;
   for (const s of r.subs) {
     if (existing.has(s.id)) continue;
+    if (DROP_EXPL.has(s.id) || DROP_EXPL.has(q.id)) s.explanation = null; // 詳解錯或是別小題的 → 只拿掉詳解,題目照常檢查
     const p = [...problems(s), ...visibleProblems(s)];
     if (/ˉ/.test(s.question)) p.push("殘留ˉ符號"); // 原檔空格/作答線轉成 ˉ,詩文裡會看到「很苦ˉ很彷徨」
     const exWhy = EXCLUDE.get(s.id) ?? EXCLUDE.get(q.id); // 可指定小題 id 或整組(母題 id)
@@ -399,6 +411,8 @@ const hidReasons = {};
 for (const s of out) for (const p of s._problems) hidReasons[`${s.subject}|${p}`] = (hidReasons[`${s.subject}|${p}`] ?? 0) + 1;
 console.log("小題隱藏原因:", hidReasons);
 
+const failsIdx = process.argv.indexOf("--fails");
+if (failsIdx !== -1) fs.writeFileSync(process.argv[failsIdx + 1], JSON.stringify(failRows), "utf8");
 const dumpIdx = process.argv.indexOf("--dump");
 if (dumpIdx !== -1) fs.writeFileSync(process.argv[dumpIdx + 1], JSON.stringify(out), "utf8");
 if (!APPLY) { console.log("(乾跑,未寫入)"); process.exit(0); }

@@ -1,11 +1,37 @@
 # 🏁 開發交接文件(新對話請先讀這份)
 
 > **給 AI**:這是「國中會考線上系統」的開發進度總覽。開新對話時先讀這份 + `docs/` 內文件,即可接續開發。每完成一個里程碑請更新本檔底部的「進度日誌」。
-> **最後更新**:2026-10-04
+> **最後更新**:2026-10-07
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
-> **2026-10-05 收工交接(最新,先看這段)**:正式站 https://cap-three-ruddy.vercel.app 最新部署 commit `16afda37`(之後只有本機
+> **2026-10-08 更新(最新,先看這段)**:第二輪公式修正與詳解清理已寫入 → **可見 92,249 / 隱藏 8,768**;hide-qa 0。
+> 程式碼仍未改(只改資料,不用部署)。**未 commit 的腳本更多了**(另加 cleanup-expl-tail.mjs、cleanup-stray-macron.mjs、
+> rebuild-sub-explanations.mjs),commit/push 要使用者同意。備份在 國中會考-DB備份/2026-10-08-*。
+
+> **2026-10-07 晚收工**:4 項寫入 + 數學/自然公式全面稽核補回**都已寫入正式資料庫**(使用者同意)。
+> **可見題 92,235 / 隱藏 8,782**(資料庫實查);全庫 hide-qa 0 題。正式站程式沒改(只改資料,不用部署),最新部署仍是 `f4c86033`。
+> 公式補回 1,135 題(備份 國中會考-DB備份/2026-10-07-formula-repair)、殘留隱藏 29 / 清詳解 129(-formula-residual),都可 --restore。
+> **未 commit**:本輪新腳本(audit-formula-loss.py、export-formula-tokens.py、repair-formula-gaps.mjs、apply-formula-repair.mjs、
+> apply-residual-actions.mjs、undo-formula-false-positives.mjs、make-recheck-page.mjs、shoot-recheck.py、word-to-docx.ps1、
+> build-repair-review.mjs)+ 上一輪未 commit 的腳本、.gitignore、清單。data/word-docx、data/sci-pdf-word 只留本機(要確認 .gitignore)。
+> 接續看 task_checklist.md「2026-10-07 交接」段的未勾項目(救回 29 題、詳解尾殘字清理)。
+
+> **2026-10-07 交接(下面這段已被上面取代)**:正式站 https://cap-three-ruddy.vercel.app 最新部署 commit `f4c86033`(之後 `3fa4c7f3` 只改清單)。
+> **可見題 92,067 / 隱藏 8,797**(資料庫實查);上次全庫 hide-qa 試算 0 題。先讀 task_checklist.md 的「2026-10-07 交接」段。
+> 已上線:配合題選項 A~H、選項尾巴出處/注釋修正、各課學習重點(英文/國文,逐項對照官方教材)、英文「依文法」練習。
+> 🔴 **4 項寫入已備妥、乾跑驗證完,但尚未執行**(使用者先說同意後又喊停,要重新確認):
+>   ① split-groups --allow-fgh --only social,chinese,english,math --apply(133 小題,可見 121)
+>   ② split-groups --only science --apply(自然 20 小題,已與 Word 原檔比對)
+>   ③ unhide-verified.mjs data/rerender/sci-review2/verified-existing.json --drop-expl data/rerender/sci-review2/drop-expl.json --apply(放回 64)
+>   ④ fix-visible-formula-loss.mjs data/rerender/vis-review/result-1.json data/rerender/vis-review/result-2.json --apply(隱藏 17、清詳解 6)
+> 🔴 **重大發現**:LibreOffice 轉檔會漏掉 Word 方程式 → 已上線數學/自然題有分數黏在一起(6/35→「635」)、線段只剩「= =」;
+>   36 題可疑中 17 題確定壞。待使用者同意後做「全面稽核可見數學/自然題」(思路見 checklist)。
+>   比對原檔一定要用 **Word COM 轉的 PDF**(data/sci-pdf-word,scripts/word-to-pdf.ps1)。
+> 未 commit:scripts/split-groups.mjs、sci-source-crops.py、sci-compare-sheets.py、word-to-pdf.ps1、unhide-verified.mjs、fix-visible-formula-loss.mjs、.gitignore、清單。
+> 教材全文/轉檔 PDF(data/textbook-txt、data/sci-pdf*)只留本機,已在 .gitignore。
+
+> **2026-10-05 收工交接**:正式站 https://cap-three-ruddy.vercel.app 最新部署 commit `16afda37`(之後只有本機
 > split-groups.mjs/文件未 commit)。**可見題 91,139 題**;全庫 hide-qa-failures 試算 0 題。先讀 task_checklist.md 最上方。
 > 這兩天:題目附圖全面看圖 + 從原檔重畫(數學/自然 7,372、社會等 2,119+126)、LO 匯出失敗圖從 .doc 救回 1,498 張、
 > 數學公式 OMML→HTML(8,561 全對應)、EQ 上標補回、非選答案拆欄位、數學隱藏題由原始 docx 重建、題組小題補圖與重新拆題。
@@ -392,6 +418,39 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 - 舊 Supabase 專案(`bghglvfbyhfjuvgyzyzy`)還在,確認新專案跑穩後可以考慮 pause 或刪除(使用者決定,別自己動)。
 
 ## 📋 進度日誌(每次里程碑往上加一行)
+
+- 2026-10-08:**公式稽核第二輪 + 詳解雜字清理(已寫入正式資料庫,使用者同意)**。
+  repair-formula-gaps 新增:≅ 取代模式(EQ \O(＝,～) 在資料庫被存成「＝」,全庫 75 個)、帶分數備援對齊(只限左鄰數字+全數字分數;
+  放寬會重複插入,試過 14 題多出字)、區段頭尾放寬(公式後面的字全沒對到 = 欄位結尾,補回答案尾 3/8、11/24、CD);--with-hidden。
+  export-formula-tokens:一般文字上下標加標記(m/s²、ΔT甲)、Symbol 字型字元換字、會考原檔在「自然科學」子資料夾(自然 33 題原本對不到)。
+  寫入:公式補回 39 題(含 ¢→′ 4 題)、昨天隱藏 29 題放回 14(看圖確認;另 4 題稽核只剩詳解但看圖主體仍錯 → 不放)、
+  cleanup-expl-tail.mjs 詳解尾段落標題/頁碼 1,450 題(數學/自然用原檔判頁碼)、cleanup-stray-macron.mjs 單獨 ˉ 119 題、
+  rebuild-sub-explanations.mjs 題組小題詳解從原檔重建 35 題(子代理 35/35 ok)。可見 **92,249**、隱藏 8,768;hide-qa 0。
+  **教訓**:稽核「只剩詳解」不代表主體正確(對齊歧義會漏抓),放回一定要看圖;heredoc 寫 JS/Python 正則反斜線會被吃,
+  改用 Write 寫 patch 檔或 Edit 工具。**下一步**:commit 本輪腳本(待使用者同意);剩 15 題隱藏(多層疊字/缺口有圖)。
+
+- 2026-10-07 晚:**4 項寫入 + 數學/自然公式全面稽核與補回(已寫入正式資料庫)**。
+  ① 4 項寫入(split-groups 社國英數 133、自然 20、unhide-verified 64、fix-visible-formula-loss 17+6)→ 可見 92,067→92,255。
+  ② 🔴 發現上次判壞的對照工具 bug:sci-compare-sheets.py 的 conv() 把 .frac 標籤去掉(6/35 顯示「635」)→ 23 題中 15 題誤判;
+  新複核工具 make-recheck-page.mjs(網站 CSS,ROWS_JSON/EXPL_FROM)+ shoot-recheck.py(Playwright 逐題截圖)→
+  undo-formula-false-positives.mjs 放回 9 題、詳解寫回 6 題。**教訓:比對公式一定用網站實際 CSS 畫,不可自己轉純文字。**
+  ③ 全面稽核 audit-formula-loss.py(docx 依題號切,EQ/OMML 內容字元 vs 資料庫 difflib;認「EQ」與「\eq」;查分數變平/上下標/OLE;
+  已知 8 壞 12 好校正 100%)→ 數學 1,364 組、自然 51 組可疑。根因:舊 restore-eq-fields 要求整欄逐字一致才補,
+  且 answer_text(後來才拆出)從沒補過;公式遺失處殘留控制字元 \x07\x03\x08(691 處)。
+  ④ export-formula-tokens.py(docx→token:EQ 含上標標記、Symbol 字元/Symbol 字型換正確符號、OMML 轉 HTML、跳過 Word 不畫的
+  「\eq\f(」無空白隱形欄位)+ repair-formula-gaps.mjs(每欄與原檔區段對齊、公式內容完全沒對到且左右相鄰才插、缺口有圖不插、
+  同位置隔空白留空格、空欄位整段補)→ 1,137 題 5,267 公式 → 23 子代理逐張看圖(ok 1,122)+ 錯誤逐一追根因修掉、
+  3 題放錯位置排除 → **apply-formula-repair.mjs 寫入 1,135 題 1,254 欄(含 manual-edits.json 3 處隱形欄位重複公式)**。
+  ⑤ 殘留 561 題 12 子代理看圖分類 → **apply-residual-actions.mjs:隱藏 29、清空詳解 129**(誤報 380 不動)。
+  最終可見 **92,235**、隱藏 8,782;hide-qa 0;正式資料庫重稽核剩 366+27 組 = 看圖確認的誤報。
+  Word 轉檔工具:word-to-docx.ps1(自然 646 檔 → data/word-docx)、word-to-pdf.ps1(數學 393 檔 → data/sci-pdf-word),只留本機。
+  **下一步**:救回 29 題(≅ 變「=」、帶分數的分數沒補到、′→¢)、詳解尾頁碼殘字/「填充」「題組」字樣清理、commit 本輪腳本。
+
+- 2026-10-07 下午:①split-groups 再擴充(每小題選項數可不同+防護、題號前右括號、拿掉【會考】標記、--fails/--only、
+  split-drop-expl.json 只拿掉詳解)→ 133 小題複核完待寫入。②自然隱藏題 188 題與原檔逐題比對:新工具 sci-source-crops.py
+  (依題號裁原檔、雙欄順序)+ sci-compare-sheets.py(並排);發現 LibreOffice PDF 漏方程式 → 改 Word COM 轉 PDF 重比 →
+  放回 64 + 新小題 20 待寫入。③發現已上線題公式遺失,36 可疑中 17 確定 → fix-visible-formula-loss.mjs 待寫入。
+  **下一步**:使用者確認 4 項寫入 → 全面稽核可見數學/自然題的方程式遺失。
 
 - 2026-10-07:①學習重點逐課對照官方教材:英文 40 課依各課習作(190 則引用逐字核對)、國文 82 課依題庫答案/習作/補救卷/應用練習
   (390 則引用 + 第二輪查填空題答案)。抓出前一版錯誤:那默默的一群=張騰蛟、傘=蓉子;找不到明文的作者不寫。對照表 data/lesson-notes-audit.md。

@@ -58,3 +58,6 @@ data/eq-sup-word/
 
 # 康軒教材轉出的全文(版權內容,只留本機,2026-10-07)
 data/textbook-txt/
+data/sci-pdf/
+data/sci-pdf-word/
+data/word-docx/

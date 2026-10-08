@@ -74,6 +74,79 @@
 - [ ] 寵物夥伴 5 個決定(提示來源、用技能的題目金幣、可用模式、每天次數、皮膚取得方式)— 見對話,規劃已提出
 - [ ] 防刷題觸發器(第 5 份 SQL)上線後,用孩子新的作答紀錄驗證(<5 秒、答錯無金幣)
 
+## ▶️ 2026-10-07 交接:新對話從這裡接續
+- [x] **4 項寫入**(2026-10-07 晚使用者同意)→ 乾跑數字與上次一致後依序寫入:可見 92,067 → 121 → 20 → 64 → −17 = **92,255**、
+      隱藏 8,762;全庫 hide-qa 0 題;抽 4 題新小題內容/答案正確。備份在 國中會考-DB備份/2026-10-07-split-groups、-unhide-verified、-visible-formula-loss
+- [x] 🔴 發現上次 vis-review 對照工具 bug:sci-compare-sheets.py 的 conv() 把 .frac 標籤拿掉(6/35 顯示成「635」)→ 23 題中 15 題誤判。
+      新工具 make-recheck-page.mjs(網站 CSS)+ shoot-recheck.py 逐題重看 → undo-formula-false-positives.mjs 放回 9 題、詳解寫回 6 題
+      (可見 92,264;hide-qa 0)。真壞 8 題維持隱藏(壞在「答案」欄)。
+- [ ] 全面稽核可見數學/自然題的 Word 方程式遺失(使用者已同意開始;寫入前要再停下來問)
+  - [x] 自然 646 檔 Word 轉 docx(scripts/word-to-docx.ps1 → data/word-docx,只留本機)
+  - [x] scripts/audit-formula-loss.py:原檔 docx 依題號切、EQ/OMML 內容字元 vs 資料庫 difflib;另查分數變平、上下標格式、OLE 方程式。
+        已知 8 壞 / 12 好題校正:8 壞全抓到、12 好 0 誤報。結果:數學 1,200 組可疑(題幹/選項/答案 776、只詳解 414)、自然 58
+        🔎 根因:舊 restore-eq-fields 要求整欄逐字一致才補;**answer_text(後來才拆出)從沒補過公式**
+  - [x] scripts/repair-formula-gaps.mjs:每欄位與原檔區段對齊(含公式內容字元),公式內容完全沒對到且左右鄰字相鄰才插入;
+        EQ 上標用 eq-sup.json / eq-sup-science.json(已從 docx 重抽)。修了兩個 bug:重複插入(改含內容字元對齊)、JS null>=0。
+        乾跑:補 948 題 4,407 個公式;補後稽核 數學 512 / 自然 45 組可疑;「多出原檔沒有的字」0 題(無重複插入)
+  - [x] 數學 393 檔 Word 轉 PDF(data/sci-pdf-word)+ 自然缺的 15 檔
+  - [x] 改用 scripts/export-formula-tokens.py(docx → token:EQ 含上標標記、Symbol 字元/字型換正確符號、OMML 轉 HTML)
+        取代 data/eq-text;稽核也認「\eq」開頭代碼(多抓 169 組);資料庫公式遺失處殘留控制字元 \x07\x03\x08(691 處)先清掉再補
+  - [x] 1,136 題補回結果做並排圖(黃底=補上的公式)→ 23 個子代理逐張看:ok 1,122、wrong 12、unsure 2
+        → wrong 處理:4 題「線段沒上劃線」是複核頁黃框蓋住(資料有 .ovl,非錯);3 題重複=Word 隱形欄位(eq 後無空白,
+        全庫 12 個)→ 匯出跳過;′ 顯示成 ¢ = Symbol 字型 → 匯出換字;BCAC 黏一起 → 同位置公式間有空白就留空格;
+        **3 題放錯位置(0930889、1051024、1051576)排除不補**;改動後的題目 Claude 親自重看(11 題)
+        「錨定」規則試過會擋掉 55% 正確插入 → 不用,改靠逐題看圖
+  - [x] 舊 restore 曾把隱形欄位補進資料庫 → 3 題重複公式(0931719 題幹多 √17、0930664 題幹多 √2、0930604 詳解多 √½)
+        → data/rerender/formula-audit/manual-edits.json 精準移除
+  - [x] scripts/apply-formula-repair.mjs 乾跑(正式資料庫):**1,135 題 1,254 欄位,跳過 0**;本機模擬補後「多出原檔沒有的字」0
+  - [x] 殘留(補後仍缺):561 題 → 12 個子代理看圖分類(data/rerender/residual-review/results):
+        **core 29(隱藏)、expl 150(清空詳解,實際有詳解的 129 題)、ok 380(程式誤報)、unsure 2(本來就沒詳解,不動)**
+        → scripts/apply-residual-actions.mjs 乾跑完成(必須在 apply-formula-repair 之後跑)
+  - [x] 使用者同意寫入(2026-10-07 晚):① apply-formula-repair --apply → 1,135 題(跳過 0)
+        ② apply-residual-actions --apply → 隱藏 29、清詳解 129 → 可見 **92,235**、隱藏 8,782;hide-qa 0;
+        正式資料庫重稽核剩 數學 366 / 自然 27 組 = 看圖確認的誤報
+  - [x] **2026-10-08 開工 → 使用者同意後 ①~⑤ 全部寫入**(實際:① 39 題、② 放回 14、③ 1,450 題、④ 119 題、⑤ 35 題;
+        可見 92,235 → **92,249**、隱藏 8,768;hide-qa 0;正式資料庫重稽核 數學 337 / 自然 20 組,多為已確認誤報),原寫入順序:
+        ① `node scripts/apply-formula-repair.mjs --edits manual-edits-1008.json --with-hidden data/rerender/formula-audit/hidden-29.json --apply`
+           (≅ 取代＝ 26 題、帶分數備援 5 題、答案尾公式 6 題等:37 題 78 公式 + ¢→′ 4 題;子代理 33 題 ok + Claude 看 6 題)
+        ② `node scripts/unhide-verified.mjs data/rerender/formula-audit/recover-ids.json --drop-expl data/rerender/formula-audit/recover-drop.json --apply`
+           (昨天隱藏 29 題中放回 14,清詳解 4;0824144/1051024/1051576/1080131-188 看圖主體仍錯 → 維持隱藏)
+        ③ `node scripts/cleanup-expl-tail.mjs --apply`(詳解尾標題 778 + 頁碼 666 = 1,444 題;必須在 ① 之後跑,會重讀資料庫)
+        ④ `node scripts/cleanup-stray-macron.mjs --apply`(單獨 ˉ:答案分隔→空格 104、題幹/選項結尾 14 = 118 題)
+        ⑤ `node scripts/rebuild-sub-explanations.mjs --apply`(題組小題詳解從原檔重建 35 題;子代理看圖 35/35 ok)
+        - 新規則:repair-formula-gaps ≅ 取代模式、帶分數備援對齊(只限左鄰數字+全數字分數,放寬會重複插入)、
+          區段頭尾放寬(公式後面的字全沒對到 = 欄位結尾);export-formula-tokens 一般文字上下標加標記、會考原檔路徑(自然科學)
+        - 自然 33 題「找不到原檔」= 會考原檔在「自然科學」子資料夾、題目沒冊別 → 已對到,稽核無新增可疑
+  - [ ] **明天接續**(10-07 寫的,10-08 已處理 1~5,剩 6):① 救回被隱藏的 29 題中可修的(≅ 變「=」全面搜尋修正、帶分數分數部分、0944197 ′→¢)
+        ② 詳解尾頁碼殘字(孤立 1/17/57)、「填充」「題組」「計算」「證明」標題殘字清理 ③ 答案中多餘「¯」
+        ④ 題組後幾小題詳解「(無)」但原檔有(拆題沒帶到)⑤ 自然 33 題找不到原檔 ⑥ commit 本輪腳本(要使用者同意)
+  - 之後可再救回:≅ 被轉成「=」(答案/詳解,0942680/0942741/0942897 等)、帶分數的分數部分沒補到(−4¾→−4,
+    整數與分子相鄰造成對齊歧義)、′→¢ 題幹(0944197),修好後可把這批隱藏題放回
+  - 順手發現(之後處理):詳解結尾殘留頁碼(孤立「1」「17」「57」)、「填充」「題組」字樣混入詳解尾、
+    答案中多一個「¯」、4 題可見數學 ′ 顯示成 ¢、自然 33 題可見題找不到原檔、題組小題的選項目前不修
+- 工具:原檔裁圖 scripts/sci-source-crops.py <items.json> sci-pdf-word <輸出>;並排 scripts/sci-compare-sheets.py;
+  Word 轉 PDF = scripts/word-to-pdf.ps1(PowerShell COM ExportAsFixedFormat)
+
+## ▶️ 2026-10-07 下午:① 剩下拆不了的題組 ② 自然科隱藏題
+
+**原則(使用者要求)**:確定是好的題目才放進題庫;每批寫入前備份 + 乾跑 + Claude/子代理逐題複核,寫入前停下來請使用者同意;
+寫入後查證數字 + 全庫檢查(hide-qa 0 題)。
+- [x] ① split-groups:每小題選項數可不同(3~5)+ 防護(空白選項、選項黏在一起「D)…」「丙　丁」)、題號前可為右括號、
+      拆題時拿掉【10X教育會考】;新增 --fails(輸出拆不了的)、--only(限定科目)、split-drop-expl.json(只拿掉詳解)
+      → 子代理文字 2 + 看圖 1 複核(r1-review/):答案錯 0、有爭議 1;排除 8、拿掉詳解 7(題目保留)
+      → **國文/社會/英文 133 小題(可見 121)待使用者同意寫入**;自然 20 小題等 ② 原檔對照後再寫
+- [ ] 剩下拆不了:數學答案格式 57(複選/無答案,系統不支援)、國文答案格式 23、其他零星
+- [x] ② 自然隱藏題盤點:扣掉已拆好的母題,候選 188 題(檢查全過但擔心公式)+ ① 的 20 小題
+      → scripts/sci-source-crops.py(原檔依「題號」裁圖,依雙欄閱讀順序)+ sci-compare-sheets.py(資料庫 vs 原檔並排)
+      → 🔴 發現 LibreOffice 轉 PDF 會漏 Word 方程式(兩邊都缺會誤判一致)→ 改用 Word COM 轉 PDF(data/sci-pdf-word,只留本機)
+      → 第一輪 185 題:壞圖 63(洋紅底表格等)、不一致 22;第二輪(Word 原檔)100 題:一致 90、不一致 9(向量 MM′、²³₁₁X、cm³ 遺失)
+      → 扣掉之前排除的 → **既有隱藏題放回 64(清空詳解 34)+ 自然新拆小題 20,待使用者同意**(scripts/unhide-verified.mjs)
+- [ ] 🔴 新發現:**已上線**數學/自然題有公式遺失(例 math-0811404「635<x105<521」上標全失、math-0811704 分數不見)
+      → 特徵掃描 36 題可疑 → Word 原檔逐題確認(vis-review/):**17 題確定遺失(隱藏)、6 題只詳解壞(清空詳解)**
+      → scripts/fix-visible-formula-loss.mjs 乾跑完成,待使用者同意
+- [ ] 建議:全面稽核可見數學/自然題(特徵掃描只抓得到 ×10 這類明顯樣式,36 題中就有 17 題壞,分數黏在一起的很多抓不到)
+      → 思路:Word COM 逐題偵測原檔有無方程式物件 → 有方程式但資料庫沒有對應 .frac/公式圖 → 列可疑 → Word 原檔對照
+
 ## ▶️ 2026-10-07:學習重點逐課對照官方教材 → 再做第 2 步依知識點練習(使用者:要仔細對照,沒時間自己測)
 
 **完成定義**:英文 40 課、國文 82 課每項學習重點都有官方教材原文依據(英文 2_習作、國文 補救教學卷(教)/4_課本應用練習);
