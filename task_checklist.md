@@ -95,7 +95,9 @@
   - [x] #1/#2 線段相鄰:原檔 token 確認全是換行、無缺符號 → scripts/fix-adjacent-ovl.mjs 乾跑 66 題 70 處(可見 65)
   - [x] (使用者已執行,2026-10-14 驗證生效)寫入:`node scripts/fix-adjacent-ovl.mjs --apply`、`node scripts/split-sub-explanations.mjs --apply`(都會自動備份、可 --restore)
         → 寫入後抽查正式站畫面
-  - [ ] 題目修正清單 #5(子代理順帶發現的原詳解錯字/事實錯誤 約 10 題):逐題查證後修
+  - [x] 題目修正清單 #5 逐題查證 + #6(22 題詳解只剩「(k)」)→ scripts/fix-expl-errors-2026-10-14.mjs 乾跑 69 題
+  - [x] 使用者執行 --apply,Claude 抽查 7 題正確、全庫「只剩標號」小題 0 題
+  - [x] 商城:100/500 元現金券下架(使用者決定,2026-10-14);現金券上限是「每人每天合計 50 元」
   - 2026-10-14:使用者同意寫入,但 Claude 執行 --apply 被自動權限擋下(Modify Shared Resources)→ 請使用者自己在終端機跑,或調整權限
 - [ ] 2026-10-14 孩子回報 2 題(science-0811652-g2「哪來的abcd」、science-0821309-g2):答案都對,問題是「承上題」單獨出題看不懂
   - [x] 網站:新元件 web/src/components/PrevSubQuestions.tsx,-gN(N>1)且題幹含「承上」→ 自動附前面小題的題目與答案(全庫可見 183 題受惠);tsc/eslint 通過
