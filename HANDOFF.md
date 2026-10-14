@@ -5,7 +5,14 @@
 
 ## 🔴 新對話第一件事:確認目前運行狀態
 
-> **2026-10-08 更新(最新,先看這段)**:第二輪公式修正與詳解清理已寫入 → **可見 92,249 / 隱藏 8,768**;hide-qa 0。
+> **2026-10-10 收工(最新,先看這段)**:題庫可見 **92,251** / 隱藏 8,766(這兩天沒有再改資料庫)。main = `192121cd`(已 push),
+> 正式站正常。本輪做了「各權限角色實測」:家長 L1、學生兩個角色在內建瀏覽器測完(使用者自己登入),題目抽查 25 題全對;
+> 發現的問題記在根目錄 **「題目修正清單.md」(4 項,都還沒修)**。**下一步**:修清單 #1、#2(線段相鄰 65 題)、#4(子題詳解混別小題 513 題),
+> #3(最後選項多句號 21,951 題,外觀)可後做;家長 L2 沒帳號未測。
+> **未 commit**:scripts/e2e/role-test.py、題目修正清單.md、.gitignore(加 data/e2e/)、HANDOFF.md、task_checklist.md。
+
+> **2026-10-08 更新**:第二輪公式修正與詳解清理已寫入 → **可見 92,251 / 隱藏 8,766**;hide-qa 0。
+> 本輪腳本已 commit 並 push(main = `192121cd`,使用者同意);網站程式沒改。剩 13 題隱藏見 task_checklist.md。
 > 程式碼仍未改(只改資料,不用部署)。**未 commit 的腳本更多了**(另加 cleanup-expl-tail.mjs、cleanup-stray-macron.mjs、
 > rebuild-sub-explanations.mjs),commit/push 要使用者同意。備份在 國中會考-DB備份/2026-10-08-*。
 
@@ -419,6 +426,19 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
 
 ## 📋 進度日誌(每次里程碑往上加一行)
 
+- 2026-10-09~10:**各權限角色實測 + 題目修正清單**。
+  ① 寫了 scripts/e2e/role-test.py(Playwright,讀 web/.env.local 的 E2E_{STUDENT,PARENT,TEACHER,GUARDIAN}_{EMAIL,PASSWORD},
+  逐頁開 20 一般頁 + 11 管理頁、記錄錯誤/權限、截圖 → data/e2e/,已加 .gitignore)。**Claude 不能自己用密碼登入正式站**
+  (安全規則),所以要使用者自己執行;本輪改用內建瀏覽器、由使用者登入後 Claude 操作。
+  ② 家長 L1(admin@test.com):31 頁全正常、無前端錯誤;題目管理頁載入 5~10 秒、清單摘要把分數攤平(點開預覽正確)。
+  ③ 學生(student@test.com,小霏):所有管理頁正確擋下;五科自由練習各 5 題(共 25 題,Claude 先自己解再作答)答案與詳解全對
+  (會在測試帳號留下作答紀錄)。打開首頁會觸發每日簽到 +10 金幣。
+  ④ 發現問題記入「題目修正清單.md」:#1 math-1080356 詳解「AD//BCAC」線段黏一起;#2 全庫 65 題詳解兩條 `.ovl` 直接相鄰
+  (data/rerender/adjacent-ovl.json,同名重複者要對原檔);#3 最後選項多「。」21,951 題(康軒原檔句尾句號併進 (D),外觀);
+  #4 題組子題詳解含整組「(1)…(2)…」513 題(data/rerender/sub-expl-unsplit.json,修法:只留本小題段)。
+  角色:student / parent(L1)/ teacher(L1)/ guardian(L2,資料庫目前沒有這個角色的帳號)。
+  **下一步**:修清單 #1、#2、#4(先乾跑 + 看圖,寫入前問使用者);#3 外觀可後做;建家長 L2 測試帳號後再測。
+
 - 2026-10-08:**公式稽核第二輪 + 詳解雜字清理(已寫入正式資料庫,使用者同意)**。
   repair-formula-gaps 新增:≅ 取代模式(EQ \O(＝,～) 在資料庫被存成「＝」,全庫 75 個)、帶分數備援對齊(只限左鄰數字+全數字分數;
   放寬會重複插入,試過 14 題多出字)、區段頭尾放寬(公式後面的字全沒對到 = 欄位結尾,補回答案尾 3/8、11/24、CD);--with-hidden。
@@ -427,7 +447,9 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
   cleanup-expl-tail.mjs 詳解尾段落標題/頁碼 1,450 題(數學/自然用原檔判頁碼)、cleanup-stray-macron.mjs 單獨 ˉ 119 題、
   rebuild-sub-explanations.mjs 題組小題詳解從原檔重建 35 題(子代理 35/35 ok)。可見 **92,249**、隱藏 8,768;hide-qa 0。
   **教訓**:稽核「只剩詳解」不代表主體正確(對齊歧義會漏抓),放回一定要看圖;heredoc 寫 JS/Python 正則反斜線會被吃,
-  改用 Write 寫 patch 檔或 Edit 工具。**下一步**:commit 本輪腳本(待使用者同意);剩 15 題隱藏(多層疊字/缺口有圖)。
+  改用 Write 寫 patch 檔或 Edit 工具。
+  下午續:eq-field.mjs 支援直線 ↔ / 射線 →(行內樣式免部署)→ 再放回 2 題;commit 331df414、7e19ca3c、192121cd 並 push(使用者同意)。
+  剩 13 題隱藏,使用者決定不人工修。**下一步**:公式這條線已收尾;可回到 HANDOFF 開頭「還沒做的」(讓家人實際使用收集回饋等)。
 
 - 2026-10-07 晚:**4 項寫入 + 數學/自然公式全面稽核與補回(已寫入正式資料庫)**。
   ① 4 項寫入(split-groups 社國英數 133、自然 20、unhide-verified 64、fix-visible-formula-loss 17+6)→ 可見 92,067→92,255。

@@ -9,6 +9,7 @@ import PetView from "@/components/PetView";
 import ReportButton from "@/components/ReportButton";
 import ChapterTag from "@/components/ChapterTag";
 import ScratchPad from "@/components/ScratchPad";
+import PrevSubQuestions from "@/components/PrevSubQuestions";
 import { reviewProgressText, type ReviewState } from "@/lib/review";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"]; // 配合題可能有 6~8 個參考選項(2026-10-06)
@@ -224,6 +225,7 @@ export default function Quiz({ questions: initial, userId, mode, reviewIds, revi
 
       <ScratchPad resetKey={q.id}>
       <div className="rounded-2xl bg-white p-6 shadow">
+        <PrevSubQuestions id={q.id} question={q.question} />
         <div
           className="qhtml whitespace-pre-wrap text-lg leading-relaxed"
           dangerouslySetInnerHTML={{ __html: q.question }}
