@@ -84,7 +84,7 @@
       → 發現問題記在根目錄「題目修正清單.md」(4 項:線段相鄰 65 題、最後選項多句號 21,951 題、子題詳解混入別小題 513 題…)
       小問題:題目管理頁載入 5~10 秒;題目管理清單摘要把分數攤平(只影響管理頁)
 - [ ] 家長 L2 尚未測(沒有帳號)
-- [ ] 修「題目修正清單.md」#1、#2(線段相鄰 65 題)、#4(子題詳解混別小題 513 題):先乾跑 + 看圖,寫入前問使用者
+- [x] 修「題目修正清單.md」#1、#2(線段相鄰 65 題)、#4(子題詳解混別小題 513 題):先乾跑 + 看圖,寫入前問使用者
   - 2026-10-10 開工:#4 新腳本 `scripts/split-sub-explanations.mjs`(全庫掃描,取代舊清單)→ 781 題可切(自然 243/社會 538)、9 題結構異常;
     支援「(1)、(2)」合併、「(3)～(4)」範圍、段尾「簡答」;原檔沒有本小題詳解 → 只留前言或清成無詳解。
     ⚠️ 發現原檔詳解編號會錯位(social-0813191 的 (2) 其實解第 1 小題)→ 8 個子代理逐題內容核對中
@@ -93,17 +93,18 @@
         data/rerender/sub-expl-overrides.json,只接受原文子字串);全庫掃「母題詳解段數 > 小題數」只有 5 組,錯位的 g1 已補對應。
         乾跑:782 題(切段 650、人工對應 17、無詳解 111、只留前言 4),Claude 隨機抽 8 題核對正確
   - [x] #1/#2 線段相鄰:原檔 token 確認全是換行、無缺符號 → scripts/fix-adjacent-ovl.mjs 乾跑 66 題 70 處(可見 65)
-  - [ ] **等使用者同意**寫入:`node scripts/fix-adjacent-ovl.mjs --apply`、`node scripts/split-sub-explanations.mjs --apply`(都會自動備份、可 --restore)
+  - [x] (使用者已執行,2026-10-14 驗證生效)寫入:`node scripts/fix-adjacent-ovl.mjs --apply`、`node scripts/split-sub-explanations.mjs --apply`(都會自動備份、可 --restore)
         → 寫入後抽查正式站畫面
   - [ ] 題目修正清單 #5(子代理順帶發現的原詳解錯字/事實錯誤 約 10 題):逐題查證後修
   - 2026-10-14:使用者同意寫入,但 Claude 執行 --apply 被自動權限擋下(Modify Shared Resources)→ 請使用者自己在終端機跑,或調整權限
 - [ ] 2026-10-14 孩子回報 2 題(science-0811652-g2「哪來的abcd」、science-0821309-g2):答案都對,問題是「承上題」單獨出題看不懂
   - [x] 網站:新元件 web/src/components/PrevSubQuestions.tsx,-gN(N>1)且題幹含「承上」→ 自動附前面小題的題目與答案(全庫可見 183 題受惠);tsc/eslint 通過
   - [x] scripts/fix-reported-2026-10-14.mjs 乾跑:補 4 題詳解、回報標已修正
-  - [ ] 使用者執行 --apply;commit + push 部署後到正式站看「承上題」畫面
+  - [x] 使用者執行 --apply(已驗證);已 commit+push `0c65afac`
+  - [ ] 到正式站實際看一次「承上題」畫面(需登入)
 - [ ] 2026-10-14 新傳說夥伴「蘭波」(使用者給 3 張參考圖,依檔名 1→2→3 為三階段)
   - [x] Gemini 金鑰 401 失效 → 改用 SVG 手繪 Q 版:scripts/draw-pet-lanbo.py → web/public/partner/lanbo-1~3.png(512×512,比照皇小米)
-  - [ ] 使用者看圖確認 → commit + push(先部署圖片)→ 管理後台「夥伴管理」新增(kind=image,/partner/lanbo-1.png…)
+  - [x] 使用者確認(一、二級對調)→ 部署圖片 → add-pet-lanbo.mjs 新增 pet_defs id 27(2000 金幣、加成同皇小米)
 - [ ] 「題目修正清單.md」#3(最後選項多句號 21,951 題,外觀,低優先)
 - [ ] commit:scripts/e2e/role-test.py、題目修正清單.md、.gitignore、HANDOFF.md、task_checklist.md(要使用者同意)
 - [ ] 使用者自己執行 `python scripts/e2e/role-test.py`(Claude 不能用密碼登入正式站)→ Claude 讀報告與截圖、修問題
