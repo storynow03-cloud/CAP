@@ -107,7 +107,7 @@
 - [ ] 2026-10-14 新傳說夥伴「蘭波」(使用者給 3 張參考圖,依檔名 1→2→3 為三階段)
   - [x] Gemini 金鑰 401 失效 → 改用 SVG 手繪 Q 版:scripts/draw-pet-lanbo.py → web/public/partner/lanbo-1~3.png(512×512,比照皇小米)
   - [x] 使用者確認(一、二級對調)→ 部署圖片 → add-pet-lanbo.mjs 新增 pet_defs id 27(2000 金幣、加成同皇小米)
-- [ ] 「題目修正清單.md」#3(最後選項多句號 21,951 題,外觀,低優先)
+- [x] 「題目修正清單.md」#3(最後選項多句號):fix-last-option-period.mjs 寫入 21,897 + 3 題,重掃剩 0(隱藏題刻意不動,選項多半本身就壞)
 - [ ] commit:scripts/e2e/role-test.py、題目修正清單.md、.gitignore、HANDOFF.md、task_checklist.md(要使用者同意)
 - [ ] 使用者自己執行 `python scripts/e2e/role-test.py`(Claude 不能用密碼登入正式站)→ Claude 讀報告與截圖、修問題
 

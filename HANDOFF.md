@@ -9,7 +9,8 @@
 > 孩子回報 2 題 **都已寫入正式資料庫**(使用者在終端機執行;Claude 跑 --apply 會被自動權限擋 → 資料庫寫入請使用者執行或開權限)。
 > 網站新增「承上題自動附前面小題」(PrevSubQuestions.tsx)。新傳說夥伴「蘭波」已上線(pet_defs id 27,價格/加成比照皇小米)。
 > Gemini 金鑰已失效(401),要 AI 生圖或用 Gemini 功能前需換新金鑰。未 commit:scripts/add-pet-lanbo.mjs、HANDOFF.md、task_checklist.md。
-> 下一步:題目修正清單 #5(原詳解錯字/事實錯誤約 10 題,待查證)、#3(最後選項多句號,外觀)。
+> 同日稍晚:題目修正清單 #3/#5/#6 也全部寫入(最後選項多句號 21,900 題、原詳解錯誤與只剩標號 69 題);100/500 元券下架。
+> **題目修正清單 1~6 項全部完成。** 下一步:家長 L2 帳號實測、隱藏題救回。
 
 > **2026-10-10 收工**:題庫可見 **92,251** / 隱藏 8,766(這兩天沒有再改資料庫)。main = `192121cd`(已 push),
 > 正式站正常。本輪做了「各權限角色實測」:家長 L1、學生兩個角色在內建瀏覽器測完(使用者自己登入),題目抽查 25 題全對;
@@ -440,7 +441,9 @@ RPC(節錄):`get_topics, get_contest_leaderboard, add_friend, get_friends_board,
   fix-reported-2026-10-14.mjs 補 4 題詳解、回報標已修正。
   ④ 蘭波:Gemini 金鑰 401 → 改用 SVG 手繪 Q 版(scripts/draw-pet-lanbo.py),使用者指定 Lv.1 抱手機、Lv.2 水晶王冠、Lv.3 人魚王;
   先部署圖片再用 add-pet-lanbo.mjs 新增 pet_defs。全部寫入都有備份在 國中會考-DB備份/2026-10-14-*。
-  遇到:Claude 執行資料庫 --apply 被自動權限擋 → 改由使用者執行。下一步:清單 #5(子代理發現的原詳解錯誤)、#3。
+  ⑤ 清單 #5 逐題查證(脊隨→脊髓、故選丁→戊、十大建設年代、選項代號錯開等)+ #6 小題詳解只剩「(k)」22 題 → fix-expl-errors-2026-10-14.mjs(69 題);
+  #3 最後選項多句號 → fix-last-option-period.mjs(只動可見題 21,900 題)。商城 100/500 元券下架(每人每天上限 50 元,原本永遠買不了)。
+  遇到:Claude 執行大量資料庫 --apply 會被自動權限擋 → 改由使用者執行。下一步:家長 L2 實測、隱藏題救回。
 
 - 2026-10-09~10:**各權限角色實測 + 題目修正清單**。
   ① 寫了 scripts/e2e/role-test.py(Playwright,讀 web/.env.local 的 E2E_{STUDENT,PARENT,TEACHER,GUARDIAN}_{EMAIL,PASSWORD},
