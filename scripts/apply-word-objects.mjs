@@ -27,6 +27,14 @@ const commonPrefix = (a, b) => { let i = 0; while (i < a.length && i < b.length 
 
 const all = await fetchAll("questions?select=id,subject,source,volume,needs_review,question,options,answer_text&order=id");
 const kids = new Set(all.filter((r) => /-g\d+$/.test(r.id)).map((r) => r.id.replace(/-g\d+$/, "")));
+// 轉檔有時留下欄位代碼文字「EMBED Word.Picture.8」而不是 U+0001 → 一樣當成佔位符(before 備份仍存原文)
+const EMBED = /EMBED\s+Word\.[A-Za-z]+\.\d+\s*/g;
+for (const r of all) {
+  r._orig = { question: r.question, options: r.options, answer_text: r.answer_text };
+  if (r.question) r.question = r.question.replace(EMBED, "\u0001");
+  if (Array.isArray(r.options)) r.options = r.options.map((o) => String(o).replace(EMBED, "\u0001"));
+  if (r.answer_text) r.answer_text = r.answer_text.replace(EMBED, "\u0001");
+}
 const targets = all.filter((r) => !kids.has(r.id) && /\u0001/.test([r.question, JSON.stringify(r.options ?? ""), r.answer_text ?? ""].join("")));
 
 const docOf = (r) => {
@@ -84,8 +92,20 @@ for (const r of targets) {
       unmatched.push({ id: r.id, where, before: before.slice(-20), after: after.slice(0, 20), best: best && { file: best.m.file, sb: best.sb, sa: best.sa } });
       return "\u0001";
     }
-    const src = imgSrc(best.m, r.subject);
-    uses.push({ file: best.m.file, src, sb: best.sb, sa: best.sa, prog: best.m.prog });
+    // 連續的佔位符(資料一、資料二…)前文都一樣,會一直配到第一個物件 → 已用過就依原檔順序改用下一個
+    let pick = best.m;
+    const usedFiles = new Set(uses.map((u) => u.file));
+    if (usedFiles.has(pick.file)) {
+      const lastK = Math.max(...cands.filter((c) => usedFiles.has(c.file)).map((c) => c.k));
+      pick = cands.find((c) => c.k > lastK && !usedFiles.has(c.file));
+      if (!pick) {
+        ok = false;
+        unmatched.push({ id: r.id, where, before: before.slice(-20), after: after.slice(0, 20), best: { file: best.m.file, why: "候選物件已用完" } });
+        return "\u0001";
+      }
+    }
+    const src = imgSrc(pick, r.subject);
+    uses.push({ file: pick.file, src, sb: best.sb, sa: best.sa, prog: pick.prog, ...(pick !== best.m && { rule: "連續佔位符依序" }) });
     return `<img src="${src}" alt="圖" />`;
   });
   // 備援 3:佔位符在最後一個選項的尾巴 = 原檔「小題要用的圖放在選項下面」,轉檔時黏進最後一個選項
@@ -117,7 +137,7 @@ for (const r of targets) {
     if (JSON.stringify(o) !== JSON.stringify(r.options)) patch.options = o;
   }
   if (r.answer_text && /\u0001/.test(r.answer_text)) patch.answer_text = fixField(r.answer_text, "answer_text");
-  if (Object.keys(patch).length) plan.push({ id: r.id, subject: r.subject, hidden: r.needs_review, complete: ok, patch, before: { question: r.question, options: r.options, answer_text: r.answer_text }, uses });
+  if (Object.keys(patch).length) plan.push({ id: r.id, subject: r.subject, hidden: r.needs_review, complete: ok, patch, before: r._orig, uses });
 }
 fs.writeFileSync(path.join(EXP, "plan.json"), JSON.stringify({ plan, unmatched }, null, 1));
 console.log(`含佔位符 ${targets.length} 題 → 有換到圖 ${plan.length} 題(全部換完 ${plan.filter((p) => p.complete).length});對不上的佔位符 ${unmatched.length} 個`);
