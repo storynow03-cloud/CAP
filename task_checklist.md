@@ -437,6 +437,7 @@
         已上線物件圖 3 張(含 social-8210285)+ 壞圖候選 20 張已處理,原圖在 data/tofu-orig/
   - [x] replace-bad-images.mjs(只換 accepted)→ 88 題全部換完;--stage 複製 70 張到 web/public/qimg/*/rx/
   - [x] 3 個子代理審查 → 放回 79(清詳解 16)、不放回 8(4 題數學分數黏在一起、social-1055975 答案標錯應為盧梭、選項錯字/箭頭變「(」)
-  - [ ] push(70 張 rx + 3 張塗白 obj)→ 使用者 replace-bad-images --apply → unhide-verified badimg-review → 驗證
+  - [x] push aaf789b6 → 使用者 replace-bad-images --apply + unhide-verified(2026-10-17)→ 79 題放回;**可見 92,718 / 隱藏 8,299**
 - [ ] C2. 其他不放回題可修的規律:、題幹字切進選項、單位/化學式掉了、「畫線處」畫線不見
-- [ ] D. 其他:用到確認壞圖 81、低解析圖 86、選項重複 ~110、非選/無答案 ~500
+- [ ] D. 還沒處理:原檔就模糊的圖 95 題(只能重畫或另找圖)、選項重複 ~110、非選/無答案 ~500、
+      各輪 not-ok 中可修的(分數黏在一起、箭頭/圈號變「(」、單位/化學式掉了、畫線不見、social-1055975 答案應為盧梭)
