@@ -423,5 +423,20 @@
   - [x] push 12a0186d(41 張圖),249 張圖正式站全 200;使用者 --apply 補圖(285 題,含原本可見缺圖 6 題)
   - [x] 使用者 unhide-verified --apply(第二次;第一次在補圖前跑所以 0 題)→ 放回 245 題;**可見 92,639 / 隱藏 8,378**
   - 4 題會考歷屆題找不到原檔(english-0880062-g1/g2、social-1080099、social-1080556)
-- [ ] C. 不放回題中可修的規律:附圖跑進最後一個選項(約 12 題)、題幹字切進選項、單位/化學式掉了、「畫線處」畫線不見
+- [ ] C. 附圖跑進最後一個選項:全庫掃出 171 題(**可見 151**,數學 99、自然 42、社會 30)→ scripts/fix-last-option-images.mjs
+      把選項尾巴的圖(含「(甲)」「圖(一)」標籤)搬到題幹最後;乾跑 + 前後對照圖 data/last-option-img-before-after.png
+  - [x] 使用者 --apply(2026-10-16),重掃剩 0
+- [ ] E. 壞圖/低解析圖 183 題(全隱藏;壞圖 91 數學自然為主、低解析 92 社會國文)→ Word 重新匯出(data/badimg-export,107 原檔 243 物件)
+      → scripts/replace-bad-images.mjs 依長寬比+位置對應:153 題全部換得到
+  - ⚠️ 低解析的原檔多半本身就是模糊點陣圖,Word 匯出只是放大(chinese-0821039 實測)→ 像素差異數值分不開 →
+        4 個子代理逐張看「同尺寸新舊對照圖」判斷 same/better/legible(data/badimg-export/review-*.json → result-*.json)
+  - [x] 4 個子代理逐張看 195 組:三項都過 71 + 舊圖全白 1 + 「字變清楚但段首有□□」20 → accepted.json 92 張;其餘多半原檔就模糊(國文幾乎全部)
+  - [x] □□ 成因:內嵌 Word 文件物件的「預覽圖」是當初存檔電腦畫的,段首全形空白缺字畫成灰色空心框(連 Word 自己輸出 PDF 也一樣)。
+        試過 OLEFormat.Activate 打開內嵌本體重排 → 原型成功但批次一直卡住(已放棄,刪除該腳本)。
+        改用 scripts/fix-tofu-boxes.py:偵測「淺灰色、空心、正方形」(黑色的國字「口」不會被誤判)→ 塗白。
+        已上線物件圖 3 張(含 social-8210285)+ 壞圖候選 20 張已處理,原圖在 data/tofu-orig/
+  - [x] replace-bad-images.mjs(只換 accepted)→ 88 題全部換完;--stage 複製 70 張到 web/public/qimg/*/rx/
+  - [x] 3 個子代理審查 → 放回 79(清詳解 16)、不放回 8(4 題數學分數黏在一起、social-1055975 答案標錯應為盧梭、選項錯字/箭頭變「(」)
+  - [ ] push(70 張 rx + 3 張塗白 obj)→ 使用者 replace-bad-images --apply → unhide-verified badimg-review → 驗證
+- [ ] C2. 其他不放回題可修的規律:、題幹字切進選項、單位/化學式掉了、「畫線處」畫線不見
 - [ ] D. 其他:用到確認壞圖 81、低解析圖 86、選項重複 ~110、非選/無答案 ~500

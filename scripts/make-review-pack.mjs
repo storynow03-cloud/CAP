@@ -2,9 +2,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ROOT, fetchAll } from "./lib/rest.mjs";
-const { plan } = JSON.parse(fs.readFileSync("data/obj-export/plan.json", "utf8"));
+const { plan } = JSON.parse(fs.readFileSync(process.env.PLAN ?? "data/obj-export/plan.json", "utf8"));
 const only = process.env.ONLY ? new Set(JSON.parse(fs.readFileSync(process.env.ONLY, "utf8"))) : null;
-const ok = plan.filter((p) => p.complete && (only ? only.has(p.id) : p.hidden));
+const ok = plan.filter((p) => p.complete && (only ? only.has(p.id) : p.hidden !== false));
 const ids = ok.map((p) => p.id);
 const rows = [];
 for (let i = 0; i < ids.length; i += 150) rows.push(...await fetchAll(`questions?select=id,subject,type,question,options,answer,answer_text,explanation&id=in.(${ids.slice(i, i + 150).join(",")})&order=id`));
